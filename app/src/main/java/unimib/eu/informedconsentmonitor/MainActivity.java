@@ -48,9 +48,10 @@ public class MainActivity extends Activity {
                 super.onPageFinished(webView, url);
                 webView.loadUrl("javascript:console.log('called by Android');");
                 injectScriptFile(webView, "timeme.js");
-                injectScriptFile(webView, "webgazer.js");
-                webView.loadUrl("javascript:TimeMe.initialize(); console.log(TimeMe.getTimeOnCurrentPageInSeconds());");
-                webView.loadUrl("javascript:webgazer.begin(); console.log(webgazer.getCurrentPrediction());");
+                webView.loadUrl("javascript:TimeMe.initialize();");
+                //injectScriptFile(webView, "webgazer.js");
+                injectScriptFile(webView, "scrolldetect.js");
+                //webView.loadUrl("javascript:webgazer.begin(); console.log(webgazer.getCurrentPrediction());");
             }
         });
         WebSettings webSettings = webView.getSettings();
