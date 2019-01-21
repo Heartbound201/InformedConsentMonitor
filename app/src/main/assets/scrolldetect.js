@@ -18,12 +18,7 @@ function getmeasurements(){
 function amountscrolled(){
     var scrollTop = window.pageYOffset || (document.documentElement || document.body.parentNode || document.body).scrollTop
     var pctScrolled = Math.floor(scrollTop/trackLength * 100) // gets percentage scrolled (ie: 80 or NaN if tracklength == 0)
-    // if TimeMe.js is injected print the time of the scroll
-    var scrollTime;
-    if(TimeMe != null){
-        scrollTime = TimeMe.getTimeOnCurrentPageInSeconds();
-    }
-    console.log(pctScrolled + '% scrolled' + ' at ' + scrollTime + ' seconds');
+    console.log(pctScrolled + '% scrolled');
 }
 
 getmeasurements()

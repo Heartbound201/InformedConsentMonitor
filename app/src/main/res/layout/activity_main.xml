@@ -19,6 +19,54 @@
     <WebView
         android:id="@+id/webview"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        />
+        android:layout_height="match_parent" />
+
+    <ToggleButton
+        android:id="@+id/debug_btn"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:textOn="Debug"
+        android:textOff="Debug"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="toggleDebugInfo" />
+
+    <TableLayout
+        android:id="@+id/debug_stats"
+        android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/debug_btn">
+
+        <TableRow>
+            <TextView android:text="Statistics" />
+        </TableRow>
+
+        <TableRow>
+            <TextView android:text="Time" />
+            <TextView
+                android:id="@+id/debug_time"
+                android:text="00:00" />
+        </TableRow>
+
+        <TableRow>
+            <TextView android:text="Scroll" />
+            <TextView
+                android:id="@+id/debug_scroll"
+                android:text="0%" />
+        </TableRow>
+
+        <TableRow>
+            <TextView android:text="Shimmer" />
+            <TextView
+                android:id="@+id/debug_shimmer"
+                android:text="Not Found" />
+        </TableRow>
+
+    </TableLayout>
+
 </android.support.constraint.ConstraintLayout>

@@ -12,7 +12,9 @@ import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.TableLayout;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 
 import com.shimmerresearch.android.Shimmer;
 import com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog;
@@ -39,18 +41,22 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         WebView webView = (WebView) findViewById(R.id.webview);
+
+        // TODO remove
+        // added only to be able to debug the application thru chrome://inspect
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             WebView.setWebContentsDebuggingEnabled(true);
         }
+
         webView.setWebViewClient(new WebViewClient(){
             @Override
             public void onPageFinished(WebView webView, String url) {
                 super.onPageFinished(webView, url);
                 webView.loadUrl("javascript:console.log('called by Android');");
                 injectScriptFile(webView, "timeme.js");
-                webView.loadUrl("javascript:TimeMe.initialize();");
-                //injectScriptFile(webView, "webgazer.js");
                 injectScriptFile(webView, "scrolldetect.js");
+                injectScriptFile(webView, "inject.js");
+                //injectScriptFile(webView, "webgazer.js");
                 //webView.loadUrl("javascript:webgazer.begin(); console.log(webgazer.getCurrentPrediction());");
             }
         });
@@ -59,6 +65,20 @@ public class MainActivity extends Activity {
         webView.loadUrl("http://ericab12.altervista.org/new-informed-consent/login.php");
 
         shimmer = new Shimmer(mHandler);
+
+        final TableLayout tv = (TableLayout)findViewById(R.id.debug_stats);
+
+        ToggleButton toggleButton = (ToggleButton) findViewById(R.id.debug_btn);
+        toggleButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (((ToggleButton) v).isChecked())
+                    tv.setVisibility(View.VISIBLE);
+                else
+                    tv.setVisibility(View.GONE);
+            }
+
+
+        });
     }
 
     private void injectScriptFile(WebView view, String scriptFile) {
