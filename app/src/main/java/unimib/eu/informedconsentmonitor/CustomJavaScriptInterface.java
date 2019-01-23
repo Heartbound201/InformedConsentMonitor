@@ -25,4 +25,9 @@ public class CustomJavaScriptInterface {
         parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_scroll), message);
     }
 
+    @JavascriptInterface
+    public void trackEyes(String message){
+        parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_webgazer), message);
+    }
+
 }

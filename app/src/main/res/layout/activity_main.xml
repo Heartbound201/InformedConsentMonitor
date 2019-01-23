@@ -51,6 +51,13 @@
         </TableRow>
 
         <TableRow>
+            <TextView android:text="Webgazer" />
+            <TextView
+                android:id="@+id/debug_webgazer"
+                android:text="{}" />
+        </TableRow>
+
+        <TableRow>
             <TextView android:text="Shimmer" />
             <TextView
                 android:id="@+id/debug_shimmer"

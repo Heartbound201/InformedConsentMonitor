@@ -37,7 +37,8 @@ import static com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog.EX
 
 public class MainActivity extends Activity {
 
-    private final static String LOG_TAG = "ShimmerBasicExample";
+    private final static String LOG_TAG_SHIMMER = "Shimmer";
+    private final static String LOG_TAG_JAVASCRIPT = "Javascript";
     Shimmer shimmer;
 
     @Override
@@ -45,26 +46,26 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Added the handler for the bluetooth state change event
         IntentFilter filter1 = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
         registerReceiver(mBroadcastReceiver1, filter1);
 
         WebView webView = (WebView) findViewById(R.id.webview);
-
-        // TODO remove
-        // added only to be able to debug the application thru chrome://inspect
+        webView.clearCache(false);
+        // Added only to be able to debug the application through chrome://inspect
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             WebView.setWebContentsDebuggingEnabled(true);
         }
 
+        // We inject the needed javascript on every loaded page
         webView.setWebViewClient(new WebViewClient(){
             @Override
             public void onPageFinished(WebView webView, String url) {
                 super.onPageFinished(webView, url);
-                webView.loadUrl("javascript:console.log('called by Android');");
                 injectScriptFile(webView, "timeme.js");
                 injectScriptFile(webView, "scrolldetect.js");
                 injectScriptFile(webView, "inject.js");
-                //injectScriptFile(webView, "webgazer.js");
+                injectScriptFile(webView, "webgazer.min.js");
                 //webView.loadUrl("javascript:webgazer.begin(); console.log(webgazer.getCurrentPrediction());");
             }
         });
@@ -77,6 +78,7 @@ public class MainActivity extends Activity {
 
         final TableLayout tv = (TableLayout)findViewById(R.id.debug_stats);
 
+        // We set the toggle button to hide or show the statistics screen
         ToggleButton toggleButton = (ToggleButton) findViewById(R.id.debug_btn);
         toggleButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -87,6 +89,7 @@ public class MainActivity extends Activity {
             }
         });
 
+        // We check if the bluetooth is ON
         BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mBluetoothAdapter == null) {
             // Device does not support Bluetooth
@@ -121,6 +124,7 @@ public class MainActivity extends Activity {
             // String-ify the script byte-array using BASE64 encoding !!!
             String encoded = Base64.encodeToString(buffer, Base64.NO_WRAP);
             view.loadUrl("javascript:(function() {" +
+                    "console.log('" + scriptFile +"');" +
                     "var parent = document.getElementsByTagName('head').item(0);" +
                     "var script = document.createElement('script');" +
                     "script.type = 'text/javascript';" +
@@ -130,6 +134,7 @@ public class MainActivity extends Activity {
                     "})()");
 
 
+            Log.d(LOG_TAG_JAVASCRIPT, "Injected file " + encoded);
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -196,12 +201,12 @@ public class MainActivity extends Activity {
                         Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.TIMESTAMP);
                         FormatCluster timeStampCluster = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
                         double timeStampData = timeStampCluster.mData;
-                        Log.i(LOG_TAG, "Time Stamp: " + timeStampData);
+                        Log.i(LOG_TAG_SHIMMER, "Time Stamp: " + timeStampData);
                         allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.ACCEL_LN_X);
                         FormatCluster accelXCluster = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
                         if (accelXCluster!=null) {
                             double accelXData = accelXCluster.mData;
-                            Log.i(LOG_TAG, "Accel LN X: " + accelXData);
+                            Log.i(LOG_TAG_SHIMMER, "Accel LN X: " + accelXData);
                         }
                     }
                     break;
