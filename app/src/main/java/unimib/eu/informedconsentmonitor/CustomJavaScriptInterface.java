@@ -1,23 +1,28 @@
 package unimib.eu.informedconsentmonitor;
 
-import android.app.Activity;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
+import android.widget.TextView;
 
 public class CustomJavaScriptInterface {
 
-    protected Activity parentActivity;
+    protected MainActivity parentActivity;
     protected WebView mWebView;
 
-    public CustomJavaScriptInterface(Activity _activity, WebView _webView)  {
+    public CustomJavaScriptInterface(MainActivity _activity, WebView _webView)  {
         parentActivity = _activity;
         mWebView = _webView;
 
     }
 
     @JavascriptInterface
-    public void testInterface(String message){
-        System.out.println(message);
+    public void trackTime(String message){
+        parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_time), message);
+    }
+
+    @JavascriptInterface
+    public void trackScroll(String message){
+        parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_scroll), message);
     }
 
 }

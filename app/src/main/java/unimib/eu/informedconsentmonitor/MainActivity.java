@@ -1,7 +1,11 @@
 package unimib.eu.informedconsentmonitor;
 
 import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,6 +17,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.TableLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
@@ -40,6 +45,9 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        IntentFilter filter1 = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+        registerReceiver(mBroadcastReceiver1, filter1);
+
         WebView webView = (WebView) findViewById(R.id.webview);
 
         // TODO remove
@@ -62,6 +70,7 @@ public class MainActivity extends Activity {
         });
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
+        webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "Native");
         webView.loadUrl("http://ericab12.altervista.org/new-informed-consent/login.php");
 
         shimmer = new Shimmer(mHandler);
@@ -76,9 +85,29 @@ public class MainActivity extends Activity {
                 else
                     tv.setVisibility(View.GONE);
             }
-
-
         });
+
+        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (mBluetoothAdapter == null) {
+            // Device does not support Bluetooth
+            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Bluetooth not supported");
+        } else {
+            if (!mBluetoothAdapter.isEnabled()) {
+                // Bluetooth is not enabled
+                updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Bluetooth turned off");
+            }
+            else{
+                connectDevice(null);
+            }
+        }
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        unregisterReceiver(mBroadcastReceiver1);
     }
 
     private void injectScriptFile(WebView view, String scriptFile) {
@@ -111,6 +140,33 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(getApplicationContext(), ShimmerBluetoothDialog.class);
         startActivityForResult(intent, ShimmerBluetoothDialog.REQUEST_CONNECT_SHIMMER);
     }
+
+    private final BroadcastReceiver mBroadcastReceiver1 = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+
+            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
+                switch(state) {
+                    case BluetoothAdapter.STATE_OFF:
+
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_OFF:
+
+                        break;
+                    case BluetoothAdapter.STATE_ON:
+
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_ON:
+                        connectDevice(null);
+                        break;
+                }
+
+            }
+        }
+    };
 
     public void startStreaming(View v) throws InterruptedException, IOException{
         shimmer.startStreaming();
@@ -200,9 +256,19 @@ public class MainActivity extends Activity {
                 String macAdd = data.getStringExtra(EXTRA_DEVICE_ADDRESS);
                 shimmer = new Shimmer(mHandler);
                 shimmer.connect(macAdd, "default");                  //Connect to the selected device
+
+                updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Ready");
             }
 
         }
+        else{
+            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Not Found");
+        }
         super.onActivityResult(requestCode, resultCode, data);
     }
+
+    public void updateDebugText(TextView view, String message){
+        view.setText(message);
+    }
+
 }
