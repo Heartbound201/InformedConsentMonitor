@@ -21,6 +21,19 @@
         android:layout_height="wrap_content"
         android:onClick="toggleDebugInfo" />
 
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginTop="0dp"
+        android:text="Connect"
+        app:layout_constraintStart_toEndOf="@+id/debug_btn"
+        app:layout_constraintTop_toTopOf="parent"
+        android:onClick="connectDevice"/>
+
     <TableLayout
         android:id="@+id/debug_stats"
         android:visibility="gone"
@@ -37,31 +50,43 @@
         </TableRow>
 
         <TableRow>
-            <TextView android:text="Time" />
+            <TextView android:text="Time"
+                android:paddingRight="20dp" />
             <TextView
                 android:id="@+id/debug_time"
                 android:text="00:00" />
         </TableRow>
 
         <TableRow>
-            <TextView android:text="Scroll" />
+            <TextView android:text="Scroll"
+                android:paddingRight="20dp" />
             <TextView
                 android:id="@+id/debug_scroll"
                 android:text="0%" />
         </TableRow>
 
         <TableRow>
-            <TextView android:text="Webgazer" />
+            <TextView android:text="Webgazer"
+                android:paddingRight="20dp" />
             <TextView
                 android:id="@+id/debug_webgazer"
                 android:text="{}" />
         </TableRow>
 
         <TableRow>
-            <TextView android:text="Shimmer" />
+            <TextView android:text="Shimmer"
+                android:paddingRight="20dp" />
             <TextView
                 android:id="@+id/debug_shimmer"
                 android:text="Not Found" />
+        </TableRow>
+
+        <TableRow>
+            <TextView android:text="Shimmer stream"
+                android:paddingRight="20dp" />
+            <TextView
+                android:id="@+id/debug_shimmer_stream"
+                android:text="-" />
         </TableRow>
 
     </TableLayout>

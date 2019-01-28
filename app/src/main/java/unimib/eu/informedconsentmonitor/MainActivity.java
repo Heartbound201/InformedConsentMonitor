@@ -21,13 +21,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
-import com.shimmerresearch.android.Shimmer;
+import com.shimmerresearch.android.*;
 import com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog;
 import com.shimmerresearch.bluetooth.ShimmerBluetooth;
-import com.shimmerresearch.driver.CallbackObject;
-import com.shimmerresearch.driver.Configuration;
-import com.shimmerresearch.driver.FormatCluster;
-import com.shimmerresearch.driver.ObjectCluster;
+import com.shimmerresearch.driver.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -64,9 +61,8 @@ public class MainActivity extends Activity {
                 super.onPageFinished(webView, url);
                 injectScriptFile(webView, "timeme.js");
                 injectScriptFile(webView, "scrolldetect.js");
-                injectScriptFile(webView, "inject.js");
                 injectScriptFile(webView, "webgazer.min.js");
-                //webView.loadUrl("javascript:webgazer.begin(); console.log(webgazer.getCurrentPrediction());");
+                injectScriptFile(webView, "inject.js");
             }
         });
         WebSettings webSettings = webView.getSettings();
@@ -74,7 +70,7 @@ public class MainActivity extends Activity {
         webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "Native");
         webView.loadUrl("http://ericab12.altervista.org/new-informed-consent/login.php");
 
-        shimmer = new Shimmer(mHandler);
+        //shimmer = new Shimmer(mHandler);
 
         final TableLayout tv = (TableLayout)findViewById(R.id.debug_stats);
 
@@ -226,7 +222,8 @@ public class MainActivity extends Activity {
                         state = ((CallbackObject) msg.obj).mState;
                         macAddress = ((CallbackObject) msg.obj).mBluetoothAddress;
                     }
-
+                    Log.d(LOG_TAG_SHIMMER, "Shimmer sensor " + state.toString());
+                    updateDebugText((TextView) findViewById(R.id.debug_shimmer), state.toString());
                     switch (state) {
                         case CONNECTED:
                             break;
@@ -239,6 +236,10 @@ public class MainActivity extends Activity {
                         case SDLOGGING:
                             break;
                         case DISCONNECTED:
+                            break;
+                        case CONNECTION_LOST:
+                            break;
+                        case CONNECTION_FAILED:
                             break;
                     }
                     break;
@@ -261,19 +262,19 @@ public class MainActivity extends Activity {
                 String macAdd = data.getStringExtra(EXTRA_DEVICE_ADDRESS);
                 shimmer = new Shimmer(mHandler);
                 shimmer.connect(macAdd, "default");                  //Connect to the selected device
-
-                updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Ready");
             }
-
-        }
-        else{
-            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Not Found");
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    public void updateDebugText(TextView view, String message){
-        view.setText(message);
+    public void updateDebugText(final TextView view, final String message){
+        // Addressing System.err: Only the original thread that created a view hierarchy can touch its views.
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                view.setText(message);
+            }
+        });
     }
 
 }
