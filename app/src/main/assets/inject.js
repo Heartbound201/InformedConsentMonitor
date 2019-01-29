@@ -21,5 +21,5 @@ function androidNativeInterfaceCall() {
 
 console.log("Injection successful.")
 startTimeMe();
-
+startWebgazer();
 setInterval(androidNativeInterfaceCall, 1000);

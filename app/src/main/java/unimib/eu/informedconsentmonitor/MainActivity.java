@@ -1,18 +1,27 @@
 package unimib.eu.informedconsentmonitor;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.hardware.Camera;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.RequiresApi;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
+import android.webkit.PermissionRequest;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -21,10 +30,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
-import com.shimmerresearch.android.*;
+import com.shimmerresearch.android.Shimmer;
 import com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog;
 import com.shimmerresearch.bluetooth.ShimmerBluetooth;
-import com.shimmerresearch.driver.*;
+import com.shimmerresearch.driver.CallbackObject;
+import com.shimmerresearch.driver.Configuration;
+import com.shimmerresearch.driver.FormatCluster;
+import com.shimmerresearch.driver.ObjectCluster;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +48,7 @@ public class MainActivity extends Activity {
 
     private final static String LOG_TAG_SHIMMER = "Shimmer";
     private final static String LOG_TAG_JAVASCRIPT = "Javascript";
+    private final static int CAMERA_PERMISSIONS_REQUEST = 10;
     Shimmer shimmer;
 
     @Override
@@ -54,21 +67,61 @@ public class MainActivity extends Activity {
             WebView.setWebContentsDebuggingEnabled(true);
         }
 
+        // Here, thisActivity is the current activity
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.READ_CONTACTS)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            // Permission is not granted
+            // Should we show an explanation?
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.READ_CONTACTS)) {
+                // Show an explanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
+            } else {
+                // No explanation needed; request the permission
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.READ_CONTACTS},
+                        CAMERA_PERMISSIONS_REQUEST);
+
+            }
+        } else {
+            // Permission has already been granted
+            // Open front facing camera
+            Camera.open(1);
+        }
+
         // We inject the needed javascript on every loaded page
         webView.setWebViewClient(new WebViewClient(){
+            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
             @Override
             public void onPageFinished(WebView webView, String url) {
                 super.onPageFinished(webView, url);
                 injectScriptFile(webView, "timeme.js");
                 injectScriptFile(webView, "scrolldetect.js");
-                injectScriptFile(webView, "webgazer.min.js");
+                injectScriptFile(webView, "webgazer.js");
                 injectScriptFile(webView, "inject.js");
             }
+
+
         });
+        webView.setWebChromeClient(new WebChromeClient() {
+            // Grant permissions for cam
+            @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+            @Override
+            public void onPermissionRequest(PermissionRequest request) {
+                request.grant(request.getResources());
+            }
+        });
+
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
+        webSettings.setDomStorageEnabled(true);
         webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "Native");
         webView.loadUrl("http://ericab12.altervista.org/new-informed-consent/login.php");
+        // TODO remove. testing on localhost due to this "https://sites.google.com/a/chromium.org/dev/Home/chromium-security/deprecating-powerful-features-on-insecure-origins"
+        //webView.loadUrl("file:///android_asset/index.html");
 
         //shimmer = new Shimmer(mHandler);
 
@@ -109,6 +162,7 @@ public class MainActivity extends Activity {
         unregisterReceiver(mBroadcastReceiver1);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     private void injectScriptFile(WebView view, String scriptFile) {
         InputStream input;
         try {
@@ -119,15 +173,19 @@ public class MainActivity extends Activity {
 
             // String-ify the script byte-array using BASE64 encoding !!!
             String encoded = Base64.encodeToString(buffer, Base64.NO_WRAP);
-            view.loadUrl("javascript:(function() {" +
-                    "console.log('" + scriptFile +"');" +
+            view.evaluateJavascript("javascript:(function() {" +
                     "var parent = document.getElementsByTagName('head').item(0);" +
                     "var script = document.createElement('script');" +
                     "script.type = 'text/javascript';" +
                     // Tell the browser to BASE64-decode the string into your script !!!
                     "script.innerHTML = decodeURIComponent(escape(window.atob('" + encoded + "')));" +
                     "parent.appendChild(script)" +
-                    "})()");
+                    "})()", new ValueCallback<String>() {
+                @Override
+                public void onReceiveValue(String s) {
+                    // noop
+                }
+            });
 
 
             Log.d(LOG_TAG_JAVASCRIPT, "Injected file " + encoded);
@@ -168,6 +226,30 @@ public class MainActivity extends Activity {
             }
         }
     };
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case CAMERA_PERMISSIONS_REQUEST: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // permission was granted, yay! Do the
+                    // contacts-related task you need to do.
+                    // Open front facing camera
+                    Camera.open(1);
+                } else {
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                }
+                return;
+            }
+
+            // other 'case' lines to check for other
+            // permissions this app might request.
+        }
+    }
 
     public void startStreaming(View v) throws InterruptedException, IOException{
         shimmer.startStreaming();
