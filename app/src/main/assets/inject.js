@@ -1,7 +1,9 @@
 
 
 function startTimeMe() {
-   TimeMe.initialize();
+   TimeMe.initialize({
+        currentPageName: "window.location.href"
+   });
 }
 
 function startWebgazer() {
@@ -23,3 +25,4 @@ console.log("Injection successful.")
 startTimeMe();
 startWebgazer();
 setInterval(androidNativeInterfaceCall, 1000);
+
