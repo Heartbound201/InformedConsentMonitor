@@ -50,4 +50,5 @@ dependencies {
         exclude group: 'com.google.protobuf'
         exclude group: 'org.apache.commons.math'
     }
+    implementation group: 'com.opencsv', name: 'opencsv', version: '4.1'
 }

@@ -11,14 +11,10 @@ function startWebgazer() {
 }
 
 function androidNativeInterfaceCall() {
-   Native.trackTime(TimeMe.getTimeOnCurrentPageInSeconds());
-   Native.trackScroll(amountscrolled());
-   if(typeof webgazer === 'undefined'){
-    Native.trackEyes('Not defined')
-   }
-   else{
-    Native.trackEyes(webgazer.getCurrentPrediction())
-   }
+   //Native.trackTime(TimeMe.getTimeOnCurrentPageInSeconds());
+   //Native.trackScroll(amountscrolled());
+   //Native.trackEyes(webgazer.getCurrentPrediction())
+   Native.trackData(window.location.href, TimeMe.getTimeOnCurrentPageInSeconds(), amountscrolled());
 }
 
 console.log("Injection successful.")
