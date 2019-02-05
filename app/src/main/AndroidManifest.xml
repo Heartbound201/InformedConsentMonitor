@@ -26,6 +26,7 @@
     <uses-permission android:name="android.permission.INTERNET"   android:required="true" />
     <uses-permission android:name="android.permission.BLUETOOTH"  android:required="true" />
     <uses-permission android:name="android.permission.CAMERA"     android:required="true" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:required="true" />
     <uses-permission android:name="android.webkit.PermissionRequest" />
     <uses-feature android:name="android.hardware.camera" />
     <uses-feature android:name="android.hardware.camera.autofocus" />

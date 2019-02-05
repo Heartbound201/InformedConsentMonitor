@@ -130,6 +130,12 @@
                 android:layout_weight="1" />
         </TableRow>
 
+        <TableRow>
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Export CSV" />
+        </TableRow>
     </TableLayout>
 
 </android.support.constraint.ConstraintLayout>

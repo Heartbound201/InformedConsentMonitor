@@ -46,12 +46,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 
+import unimib.eu.informedconsentmonitor.datamodel.SQLiteDbHelper;
+
 import static com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog.EXTRA_DEVICE_ADDRESS;
 
 public class MainActivity extends Activity {
 
     private final static String LOG_TAG = "Shimmer";
-    private final static int CAMERA_PERMISSIONS_REQUEST = 10;
+    private final static int REQUEST_CAMERA_PERMISSION = 10;
+    private final static int REQUEST_EXTERNAL_STORAGE_PERMISSION = 11;
+
 
     protected Button connectBtn;
     protected ToggleButton streamBtn;
@@ -60,6 +64,7 @@ public class MainActivity extends Activity {
     protected WebView webView;
     protected XYPlot dynamicPlot;
 
+    SQLiteDbHelper dbHelper;
     ShimmerBluetoothManagerAndroid btManager;
     ShimmerDevice shimmerDevice;
     String shimmerBtAdd;
@@ -73,6 +78,11 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        ActivityCompat.requestPermissions(this, new String[]{
+                Manifest.permission.CAMERA,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+        }, 0);
 
         // Layout elements
         connectBtn = findViewById(R.id.connect_btn);
@@ -98,30 +108,11 @@ public class MainActivity extends Activity {
         // Added only to be able to debug the application through chrome://inspect
         WebView.setWebContentsDebuggingEnabled(true);
 
-        // Here, thisActivity is the current activity
-        if (ContextCompat.checkSelfPermission(this,
-                Manifest.permission.READ_CONTACTS)
-                != PackageManager.PERMISSION_GRANTED) {
+        // Open front facing camera
+        Camera.open(1);
 
-            // Permission is not granted
-            // Should we show an explanation?
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.READ_CONTACTS)) {
-                // Show an explanation to the user *asynchronously* -- don't block
-                // this thread waiting for the user's response! After the user
-                // sees the explanation, try again to request the permission.
-            } else {
-                // No explanation needed; request the permission
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.READ_CONTACTS},
-                        CAMERA_PERMISSIONS_REQUEST);
-
-            }
-        } else {
-            // Permission has already been granted
-            // Open front facing camera
-            Camera.open(1);
-        }
+        // Open SQLite Db
+        dbHelper = new SQLiteDbHelper(getApplicationContext());
 
         // We inject the needed javascript on every loaded page
         webView.setWebViewClient(new WebViewClient(){
@@ -150,7 +141,9 @@ public class MainActivity extends Activity {
         webSettings.setDomStorageEnabled(true);
         webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "Native");
         webView.loadUrl("http://ericab12.altervista.org/new-informed-consent/login.php");
-        // TODO remove. testing on localhost due to this "https://sites.google.com/a/chromium.org/dev/Home/chromium-security/deprecating-powerful-features-on-insecure-origins"
+        // TODO remove. testing on localhost due to this
+        // "https://sites.google.com/a/chromium.org/dev/Home/chromium-security/deprecating-powerful-features-on-insecure-origins"
+        // camera remote acivation is allowed only on localhost or https served websites
         //webView.loadUrl("file:///android_asset/index.html");
 
         // We set the debug button to hide or show the statistics screen
@@ -257,7 +250,7 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
-            case CAMERA_PERMISSIONS_REQUEST: {
+            case REQUEST_CAMERA_PERMISSION: {
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -271,6 +264,23 @@ public class MainActivity extends Activity {
                 }
                 return;
             }
+            case REQUEST_EXTERNAL_STORAGE_PERMISSION: {
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // permission was granted, yay! Do the
+                    // contacts-related task you need to do.
+                    // Open front facing camera
+                    Camera.open(1);
+                } else {
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+
+                    dbHelper.exportCsv();
+                }
+                return;
+            }
+
+
 
             // other 'case' lines to check for other
             // permissions this app might request.
@@ -289,6 +299,7 @@ public class MainActivity extends Activity {
                 case ShimmerBluetooth.MSG_IDENTIFIER_DATA_PACKET:
                     if ((msg.obj instanceof ObjectCluster)) {
 
+                        //Print data to Logcat
                         ObjectCluster objectCluster = (ObjectCluster) msg.obj;
 
                         //Retrieve all possible formats for the current sensor device:
