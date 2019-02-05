@@ -22,6 +22,7 @@
         android:onClick="toggleDebugInfo" />
 
     <Button
+        android:id="@+id/connect_btn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
@@ -31,62 +32,102 @@
         android:layout_marginTop="0dp"
         android:text="Connect"
         app:layout_constraintStart_toEndOf="@+id/debug_btn"
-        app:layout_constraintTop_toTopOf="parent"
-        android:onClick="connectDevice"/>
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ToggleButton
+        android:id="@+id/stream_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginStart="8dp"
+        android:textOff="Start Stream"
+        android:textOn="Stop Stream"
+        app:layout_constraintStart_toEndOf="@+id/connect_btn"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TableLayout
         android:id="@+id/debug_stats"
-        android:visibility="gone"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="8dp"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:background="#cc4d5666"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/debug_btn">
 
         <TableRow>
-            <TextView android:text="Statistics" />
+
+            <TextView android:text="Statistics"
+                android:textColor="@android:color/white" />
         </TableRow>
 
         <TableRow>
-            <TextView android:text="Time"
-                android:paddingRight="20dp" />
+
+            <TextView
+                android:paddingRight="20dp"
+                android:textColor="@android:color/white"
+                android:text="Time" />
+
             <TextView
                 android:id="@+id/debug_time"
+                android:textColor="@android:color/white"
                 android:text="00:00" />
         </TableRow>
 
         <TableRow>
-            <TextView android:text="Scroll"
-                android:paddingRight="20dp" />
+
+            <TextView
+                android:paddingRight="20dp"
+                android:textColor="@android:color/white"
+                android:text="Scroll" />
+
             <TextView
                 android:id="@+id/debug_scroll"
+                android:textColor="@android:color/white"
                 android:text="0%" />
         </TableRow>
 
         <TableRow>
-            <TextView android:text="Webgazer"
-                android:paddingRight="20dp" />
+
+            <TextView
+                android:paddingRight="20dp"
+                android:textColor="@android:color/white"
+                android:text="Webgazer" />
+
             <TextView
                 android:id="@+id/debug_webgazer"
-                android:text="{}" />
+                android:textColor="@android:color/white"
+                android:text="-" />
         </TableRow>
 
         <TableRow>
-            <TextView android:text="Shimmer"
-                android:paddingRight="20dp" />
+
+            <TextView
+                android:paddingRight="20dp"
+                android:textColor="@android:color/white"
+                android:text="Shimmer" />
+
             <TextView
                 android:id="@+id/debug_shimmer"
-                android:text="Not Found" />
+                android:textColor="@android:color/white"
+                android:text="-" />
         </TableRow>
 
         <TableRow>
-            <TextView android:text="Shimmer stream"
-                android:paddingRight="20dp" />
-            <TextView
-                android:id="@+id/debug_shimmer_stream"
-                android:text="-" />
+
+            <com.androidplot.xy.XYPlot
+                android:id="@+id/dynamicPlot"
+                title="Shimmer Data Plot"
+                android:layout_width="fill_parent"
+                android:layout_height="180dp"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginRight="10dp"
+                android:layout_weight="1" />
         </TableRow>
 
     </TableLayout>

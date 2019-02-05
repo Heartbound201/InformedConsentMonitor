@@ -25,18 +25,22 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Button;
 import android.widget.TableLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import com.androidplot.xy.XYPlot;
 import com.shimmerresearch.android.Shimmer;
 import com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog;
+import com.shimmerresearch.android.manager.ShimmerBluetoothManagerAndroid;
 import com.shimmerresearch.bluetooth.ShimmerBluetooth;
 import com.shimmerresearch.driver.CallbackObject;
 import com.shimmerresearch.driver.Configuration;
 import com.shimmerresearch.driver.FormatCluster;
 import com.shimmerresearch.driver.ObjectCluster;
+import com.shimmerresearch.driver.ShimmerDevice;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,26 +50,53 @@ import static com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog.EX
 
 public class MainActivity extends Activity {
 
-    private final static String LOG_TAG_SHIMMER = "Shimmer";
-    private final static String LOG_TAG_JAVASCRIPT = "Javascript";
+    private final static String LOG_TAG = "Shimmer";
     private final static int CAMERA_PERMISSIONS_REQUEST = 10;
-    Shimmer shimmer;
+
+    protected Button connectBtn;
+    protected ToggleButton streamBtn;
+    protected ToggleButton debugBtn;
+    protected TableLayout statsTable;
+    protected WebView webView;
+    protected XYPlot dynamicPlot;
+
+    ShimmerBluetoothManagerAndroid btManager;
+    ShimmerDevice shimmerDevice;
+    String shimmerBtAdd;
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Added the handler for the bluetooth state change event
-        IntentFilter filter1 = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
-        registerReceiver(mBroadcastReceiver1, filter1);
+        // Layout elements
+        connectBtn = findViewById(R.id.connect_btn);
+        webView = findViewById(R.id.webview);
+        statsTable = findViewById(R.id.debug_stats);
+        dynamicPlot = findViewById(R.id.dynamicPlot);
 
-        WebView webView = (WebView) findViewById(R.id.webview);
+        try {
+            btManager = new ShimmerBluetoothManagerAndroid(this, mHandler);
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "Couldn't create ShimmerBluetoothManagerAndroid. Error: " + e);
+        }
+
+        connectBtn.setOnClickListener( new View.OnClickListener() {
+            @Override
+            public void onClick (View v)
+            {
+                connectDevice(statsTable);
+            }
+        });
+
         webView.clearCache(false);
         // Added only to be able to debug the application through chrome://inspect
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            WebView.setWebContentsDebuggingEnabled(true);
-        }
+        WebView.setWebContentsDebuggingEnabled(true);
 
         // Here, thisActivity is the current activity
         if (ContextCompat.checkSelfPermission(this,
@@ -94,14 +125,13 @@ public class MainActivity extends Activity {
 
         // We inject the needed javascript on every loaded page
         webView.setWebViewClient(new WebViewClient(){
-            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
             @Override
             public void onPageFinished(WebView webView, String url) {
                 super.onPageFinished(webView, url);
                 injectScriptFile(webView, "timeme.js");
                 injectScriptFile(webView, "scrolldetect.js");
-                injectScriptFile(webView, "webgazer.js");
-                injectScriptFile(webView, "inject.js");
+                //injectScriptFile(webView, "webgazer.js");
+                //injectScriptFile(webView, "inject.js");
             }
 
 
@@ -123,46 +153,36 @@ public class MainActivity extends Activity {
         // TODO remove. testing on localhost due to this "https://sites.google.com/a/chromium.org/dev/Home/chromium-security/deprecating-powerful-features-on-insecure-origins"
         //webView.loadUrl("file:///android_asset/index.html");
 
-        //shimmer = new Shimmer(mHandler);
-
-        final TableLayout tv = (TableLayout)findViewById(R.id.debug_stats);
-
-        // We set the toggle button to hide or show the statistics screen
-        ToggleButton toggleButton = (ToggleButton) findViewById(R.id.debug_btn);
-        toggleButton.setOnClickListener(new View.OnClickListener() {
+        // We set the debug button to hide or show the statistics screen
+        debugBtn = findViewById(R.id.debug_btn);
+        debugBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (((ToggleButton) v).isChecked())
-                    tv.setVisibility(View.VISIBLE);
+                    statsTable.setVisibility(View.VISIBLE);
                 else
-                    tv.setVisibility(View.GONE);
+                    statsTable.setVisibility(View.GONE);
             }
         });
 
-        // We check if the bluetooth is ON
-        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (mBluetoothAdapter == null) {
-            // Device does not support Bluetooth
-            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Bluetooth not supported");
-        } else {
-            if (!mBluetoothAdapter.isEnabled()) {
-                // Bluetooth is not enabled
-                updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Bluetooth turned off");
+        // We set the stream button to start and stop streaming functions
+        streamBtn = findViewById(R.id.stream_btn);
+        streamBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (((ToggleButton) v).isChecked())
+                    startStreaming(v);
+                else
+                    stopStreaming(v);
             }
-            else{
-                connectDevice(null);
-            }
-        }
+        });
+
 
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-
-        unregisterReceiver(mBroadcastReceiver1);
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     private void injectScriptFile(WebView view, String scriptFile) {
         InputStream input;
         try {
@@ -187,8 +207,6 @@ public class MainActivity extends Activity {
                 }
             });
 
-
-            Log.d(LOG_TAG_JAVASCRIPT, "Injected file " + encoded);
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -196,40 +214,48 @@ public class MainActivity extends Activity {
     }
 
     public void connectDevice(View v) {
+
+        /*
+        // We check if the bluetooth is ON
+        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (mBluetoothAdapter == null) {
+            // Device does not support Bluetooth
+            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Bluetooth not supported");
+        } else {
+            if (!mBluetoothAdapter.isEnabled()) {
+                // Bluetooth is not enabled
+                updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Bluetooth turned off");
+            }
+            else{
+                connectDevice(statsTable);
+            }
+        }
+        */
+
         Intent intent = new Intent(getApplicationContext(), ShimmerBluetoothDialog.class);
         startActivityForResult(intent, ShimmerBluetoothDialog.REQUEST_CONNECT_SHIMMER);
     }
 
-    private final BroadcastReceiver mBroadcastReceiver1 = new BroadcastReceiver() {
+    public void startSDLogging(View v) {
+        ((ShimmerBluetooth)shimmerDevice).writeConfigTime(System.currentTimeMillis());
+        shimmerDevice.startSDLogging();
+    }
 
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            final String action = intent.getAction();
+    public void stopSDLogging(View v) {
+        shimmerDevice.stopSDLogging();
+    }
 
-            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
-                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
-                switch(state) {
-                    case BluetoothAdapter.STATE_OFF:
+    public void stopStreaming(View v){
+        shimmerDevice.stopStreaming();
+    }
 
-                        break;
-                    case BluetoothAdapter.STATE_TURNING_OFF:
+    public void startStreaming(View v){
+        shimmerDevice.startStreaming();
+    }
 
-                        break;
-                    case BluetoothAdapter.STATE_ON:
-
-                        break;
-                    case BluetoothAdapter.STATE_TURNING_ON:
-                        connectDevice(null);
-                        break;
-                }
-
-            }
-        }
-    };
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
             case CAMERA_PERMISSIONS_REQUEST: {
                 // If request is cancelled, the result arrays are empty.
@@ -251,15 +277,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    public void startStreaming(View v) throws InterruptedException, IOException{
-        shimmer.startStreaming();
-    }
-
-    public void stopStreaming(View v) throws IOException{
-        shimmer.stopStreaming();
-    }
-
-
     /**
      * Messages from the Shimmer device including sensor data are received here
      */
@@ -272,21 +289,43 @@ public class MainActivity extends Activity {
                 case ShimmerBluetooth.MSG_IDENTIFIER_DATA_PACKET:
                     if ((msg.obj instanceof ObjectCluster)) {
 
-                        //Print data to Logcat
                         ObjectCluster objectCluster = (ObjectCluster) msg.obj;
 
                         //Retrieve all possible formats for the current sensor device:
                         Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.TIMESTAMP);
                         FormatCluster timeStampCluster = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
                         double timeStampData = timeStampCluster.mData;
-                        Log.i(LOG_TAG_SHIMMER, "Time Stamp: " + timeStampData);
-                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.ACCEL_LN_X);
-                        FormatCluster accelXCluster = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
-                        if (accelXCluster!=null) {
-                            double accelXData = accelXCluster.mData;
-                            Log.i(LOG_TAG_SHIMMER, "Accel LN X: " + accelXData);
+                        Log.i(LOG_TAG, "TIMESTAMP: " + timeStampData);
+
+                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.GSR_RESISTANCE);
+                        FormatCluster gsrResistance = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
+                        if (gsrResistance!=null) {
+                            double GSRData = gsrResistance.mData;
+                            Log.i(LOG_TAG, "GSR_RESISTANCE: " + GSRData);
+                        }
+
+                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE);
+                        FormatCluster gsrConductance = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
+                        if (gsrConductance!=null) {
+                            double GSRData = gsrConductance.mData;
+                            Log.i(LOG_TAG, "GSR_CONDUCTANCE: " + GSRData);
+                        }
+
+                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.ECG_LL_RA_24BIT);
+                        FormatCluster ECG_LL_RA = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
+                        if (ECG_LL_RA!=null) {
+                            double ECGData = ECG_LL_RA.mData;
+                            Log.i(LOG_TAG, "ECG_LL_RA_24BIT: " + ECGData);
+                        }
+
+                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.ECG_LL_LA_24BIT);
+                        FormatCluster ECG_LL_LA = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
+                        if (ECG_LL_LA!=null) {
+                            double ECGData = ECG_LL_LA.mData;
+                            Log.i(LOG_TAG, "ECG_LL_LA_24BIT: " + ECGData);
                         }
                     }
+                    dynamicPlot.redraw();
                     break;
                 case Shimmer.MESSAGE_TOAST:
                     /** Toast messages sent from {@link Shimmer} are received here. E.g. device xxxx now streaming.
@@ -304,31 +343,45 @@ public class MainActivity extends Activity {
                         state = ((CallbackObject) msg.obj).mState;
                         macAddress = ((CallbackObject) msg.obj).mBluetoothAddress;
                     }
-                    Log.d(LOG_TAG_SHIMMER, "Shimmer sensor " + state.toString());
-                    updateDebugText((TextView) findViewById(R.id.debug_shimmer), state.toString());
+
+                    Log.d(LOG_TAG, "Shimmer state changed! Shimmer = " + macAddress + ", new state = " + state);
+
                     switch (state) {
                         case CONNECTED:
+                            Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now CONNECTED");
+                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "CONNECTED");
+                            shimmerDevice = btManager.getShimmerDeviceBtConnectedFromMac(shimmerBtAdd);
+                            if(shimmerDevice != null) { Log.i(LOG_TAG, "Got the ShimmerDevice!"); }
+                            else { Log.i(LOG_TAG, "ShimmerDevice returned is NULL!"); }
                             break;
                         case CONNECTING:
+                            Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is CONNECTING");
+                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "CONNECTING");
                             break;
                         case STREAMING:
+                            Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now STREAMING");
+                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "STREAMING");
                             break;
                         case STREAMING_AND_SDLOGGING:
+                            Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now STREAMING AND LOGGING");
+                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "STREAMING AND LOGGING");
                             break;
                         case SDLOGGING:
+                            Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now SDLOGGING");
+                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "SDLOGGING");
                             break;
                         case DISCONNECTED:
-                            break;
-                        case CONNECTION_LOST:
-                            break;
-                        case CONNECTION_FAILED:
+                            Log.i(LOG_TAG, "Shimmer [" + macAddress + "] has been DISCONNECTED");
+                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "DISCONNECTED");
                             break;
                     }
                     break;
             }
+
             super.handleMessage(msg);
         }
     };
+
 
     /**
      * Get the result from the paired devices dialog
@@ -340,10 +393,19 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if(requestCode == 2) {
             if (resultCode == Activity.RESULT_OK) {
+                try {
+                    btManager.disconnectAllDevices();   //Disconnect all devices first
+                }catch (NullPointerException ex){
+                    // .disconnectAllDevices() on null object throws a NPE
+                }
                 //Get the Bluetooth mac address of the selected device:
                 String macAdd = data.getStringExtra(EXTRA_DEVICE_ADDRESS);
+                btManager.connectShimmerThroughBTAddress(macAdd);   //Connect to the selected device
+                shimmerBtAdd = macAdd;
+                /*
                 shimmer = new Shimmer(mHandler);
                 shimmer.connect(macAdd, "default");                  //Connect to the selected device
+                */
             }
         }
         super.onActivityResult(requestCode, resultCode, data);
