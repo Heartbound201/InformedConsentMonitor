@@ -1,6 +1,7 @@
 package unimib.eu.informedconsentmonitor;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
@@ -8,6 +9,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.hardware.Camera;
 import android.os.Build;
 import android.os.Bundle;
@@ -31,7 +34,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import com.androidplot.ui.SizeLayoutType;
+import com.androidplot.ui.SizeMetrics;
+import com.androidplot.xy.LineAndPointFormatter;
 import com.androidplot.xy.XYPlot;
+import com.androidplot.xy.XYStepMode;
 import com.shimmerresearch.android.Shimmer;
 import com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog;
 import com.shimmerresearch.android.manager.ShimmerBluetoothManagerAndroid;
@@ -44,17 +51,23 @@ import com.shimmerresearch.driver.ShimmerDevice;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
+import pl.flex_it.androidplot.XYSeriesShimmer;
 import unimib.eu.informedconsentmonitor.datamodel.SQLiteDbHelper;
 
+import static com.shimmerresearch.android.guiUtilities.PlotFragment.X_AXIS_LENGTH;
 import static com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog.EXTRA_DEVICE_ADDRESS;
 
 public class MainActivity extends Activity {
 
     private final static String LOG_TAG = "Shimmer";
-    private final static int REQUEST_CAMERA_PERMISSION = 10;
-    private final static int REQUEST_EXTERNAL_STORAGE_PERMISSION = 11;
 
 
     protected Button connectBtn;
@@ -64,6 +77,14 @@ public class MainActivity extends Activity {
     protected WebView webView;
     protected XYPlot dynamicPlot;
 
+    public static HashMap<String, LineAndPointFormatter> sensorMap = new HashMap<String, LineAndPointFormatter>(){{
+            put(Configuration.Shimmer3.ObjectClusterSensorName.GSR_RESISTANCE, // opposite of GSR_CONDUCTANCE
+                    new LineAndPointFormatter(Color.rgb(0, 255, 0), null, null));
+            put(Configuration.Shimmer3.ObjectClusterSensorName.ECG_TO_HR_FW,
+                    new LineAndPointFormatter(Color.rgb(255, 0, 0), null, null));
+    }};
+    public static HashMap<String, List<Number>> mPlotDataMap = new HashMap<String, List<Number>>(1);
+    public static HashMap<String, XYSeriesShimmer> mPlotSeriesMap = new HashMap<String, XYSeriesShimmer>(1);
     SQLiteDbHelper dbHelper;
     ShimmerBluetoothManagerAndroid btManager;
     ShimmerDevice shimmerDevice;
@@ -90,6 +111,11 @@ public class MainActivity extends Activity {
         statsTable = findViewById(R.id.debug_stats);
         dynamicPlot = findViewById(R.id.dynamicPlot);
 
+        // Initialize plot
+        dynamicPlot.getGraphWidget().setDomainValueFormat(new DecimalFormat("0"));
+        dynamicPlot.setDomainStepMode(XYStepMode.SUBDIVIDE);
+        dynamicPlot.getLegendWidget().setSize(new SizeMetrics(0, SizeLayoutType.ABSOLUTE, 0, SizeLayoutType.ABSOLUTE));
+
         try {
             btManager = new ShimmerBluetoothManagerAndroid(this, mHandler);
         } catch (Exception e) {
@@ -107,9 +133,6 @@ public class MainActivity extends Activity {
         webView.clearCache(false);
         // Added only to be able to debug the application through chrome://inspect
         WebView.setWebContentsDebuggingEnabled(true);
-
-        // Open front facing camera
-        Camera.open(1);
 
         // Open SQLite Db
         dbHelper = new SQLiteDbHelper(getApplicationContext());
@@ -250,46 +273,19 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
-            case REQUEST_CAMERA_PERMISSION: {
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // permission was granted, yay! Do the
-                    // contacts-related task you need to do.
-                    // Open front facing camera
-                    Camera.open(1);
-                } else {
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
-                }
-                return;
+            case 0: {
+                // Open front facing camera
+                Camera.open(1);
             }
-            case REQUEST_EXTERNAL_STORAGE_PERMISSION: {
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // permission was granted, yay! Do the
-                    // contacts-related task you need to do.
-                    // Open front facing camera
-                    Camera.open(1);
-                } else {
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
-
-                    dbHelper.exportCsv();
-                }
-                return;
-            }
-
-
-
-            // other 'case' lines to check for other
-            // permissions this app might request.
         }
+        // other 'case' lines to check for other
+        // permissions this app might request.
     }
 
     /**
      * Messages from the Shimmer device including sensor data are received here
      */
+    @SuppressLint("HandlerLeak")
     Handler mHandler = new Handler() {
 
         @Override
@@ -302,38 +298,38 @@ public class MainActivity extends Activity {
                         //Print data to Logcat
                         ObjectCluster objectCluster = (ObjectCluster) msg.obj;
 
-                        //Retrieve all possible formats for the current sensor device:
-                        Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.TIMESTAMP);
-                        FormatCluster timeStampCluster = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
-                        double timeStampData = timeStampCluster.mData;
-                        Log.i(LOG_TAG, "TIMESTAMP: " + timeStampData);
+                        for (String sensor : sensorMap.keySet()) {
+                            //Retrieve all possible formats for the current sensor device:
+                            Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(sensor);
+                            FormatCluster formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
+                            if (formatCluster != null) {
+                                double data = formatCluster.mData;
+                                Log.i(LOG_TAG, sensor + ": " + data);
+                            }
 
-                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.GSR_RESISTANCE);
-                        FormatCluster gsrResistance = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
-                        if (gsrResistance!=null) {
-                            double GSRData = gsrResistance.mData;
-                            Log.i(LOG_TAG, "GSR_RESISTANCE: " + GSRData);
-                        }
+                            // Plot streamed data
+                            List<Number> data;
+                            if (mPlotDataMap.get(sensor)!=null){
+                                data = mPlotDataMap.get(sensor);
+                            } else {
+                                data = new ArrayList<Number>();
+                            }
+                            if (data.size()>X_AXIS_LENGTH){
+                                //data.clear();
+                                data.remove(0);
+                            }
+                            data.add(formatCluster.mData);
+                            mPlotDataMap.put(sensor, data);
 
-                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE);
-                        FormatCluster gsrConductance = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
-                        if (gsrConductance!=null) {
-                            double GSRData = gsrConductance.mData;
-                            Log.i(LOG_TAG, "GSR_CONDUCTANCE: " + GSRData);
-                        }
-
-                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.ECG_LL_RA_24BIT);
-                        FormatCluster ECG_LL_RA = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
-                        if (ECG_LL_RA!=null) {
-                            double ECGData = ECG_LL_RA.mData;
-                            Log.i(LOG_TAG, "ECG_LL_RA_24BIT: " + ECGData);
-                        }
-
-                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.ECG_LL_LA_24BIT);
-                        FormatCluster ECG_LL_LA = ((FormatCluster)ObjectCluster.returnFormatCluster(allFormats,"CAL"));
-                        if (ECG_LL_LA!=null) {
-                            double ECGData = ECG_LL_LA.mData;
-                            Log.i(LOG_TAG, "ECG_LL_LA_24BIT: " + ECGData);
+                            //next check if the series exist
+                            if (mPlotSeriesMap.get(sensor)!=null){
+                                //if the series exist get the line format
+                                mPlotSeriesMap.get(sensor).updateData(data);
+                            } else {
+                                XYSeriesShimmer series = new XYSeriesShimmer(data, 0, sensor);
+                                mPlotSeriesMap.put(sensor, series);
+                                dynamicPlot.addSeries(mPlotSeriesMap.get(sensor), sensorMap.get(sensor));
+                            }
                         }
                     }
                     dynamicPlot.redraw();

@@ -15,6 +15,9 @@ public class SessionContract {
         public static final String COLUMN_PAGE_URL = "page_url";
         public static final String COLUMN_TIME = "time_on_page";
         public static final String COLUMN_SCROLL = "scroll_percentage";
+        public static final String COLUMN_GSR = "gsr";
+        public static final String COLUMN_ECG = "ecg";
+        // ECG Right Arm, Left Arm, Right Leg, Left Leg
 
     }
 }

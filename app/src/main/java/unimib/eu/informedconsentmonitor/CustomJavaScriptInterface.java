@@ -19,21 +19,6 @@ public class CustomJavaScriptInterface {
     }
 
     @JavascriptInterface
-    public void trackTime(String message){
-        parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_time), message);
-    }
-
-    @JavascriptInterface
-    public void trackScroll(String message){
-        parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_scroll), message);
-    }
-
-    @JavascriptInterface
-    public void trackEyes(String message){
-        parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_webgazer), message);
-    }
-
-    @JavascriptInterface
     public void trackData(String url, String time, String scroll){
         parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_time), time);
         parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_scroll), scroll);

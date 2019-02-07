@@ -11,10 +11,8 @@ function startWebgazer() {
 }
 
 function androidNativeInterfaceCall() {
-   //Native.trackTime(TimeMe.getTimeOnCurrentPageInSeconds());
-   //Native.trackScroll(amountscrolled());
-   //Native.trackEyes(webgazer.getCurrentPrediction())
-   Native.trackData(window.location.href, TimeMe.getTimeOnCurrentPageInSeconds(), amountscrolled());
+   // webgazer.getCurrentPrediction()
+   Native.trackData(window.location.href, Math.round(TimeMe.getTimeOnCurrentPageInSeconds()), amountscrolled());
 }
 
 console.log("Injection successful.")
