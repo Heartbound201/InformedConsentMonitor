@@ -5,7 +5,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
-
     <WebView
         android:id="@+id/webview"
         android:layout_width="match_parent"
@@ -88,6 +87,7 @@
             <TextView
                 android:id="@+id/debug_scroll"
                 android:textColor="@android:color/white"
+                android:scrollHorizontally="false"
                 android:text="0%" />
         </TableRow>
 
@@ -138,4 +138,5 @@
         </TableRow>
     </TableLayout>
 
+    <!--<include layout="@layout/footer" />-->
 </android.support.constraint.ConstraintLayout>

@@ -9,13 +9,18 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.hardware.Camera;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -77,11 +82,11 @@ public class MainActivity extends Activity {
     protected WebView webView;
     protected XYPlot dynamicPlot;
 
-    public static HashMap<String, LineAndPointFormatter> sensorMap = new HashMap<String, LineAndPointFormatter>(){{
-            put(Configuration.Shimmer3.ObjectClusterSensorName.GSR_RESISTANCE, // opposite of GSR_CONDUCTANCE
-                    new LineAndPointFormatter(Color.rgb(0, 255, 0), null, null));
-            put(Configuration.Shimmer3.ObjectClusterSensorName.ECG_TO_HR_FW,
-                    new LineAndPointFormatter(Color.rgb(255, 0, 0), null, null));
+    public static HashMap<String, LineAndPointFormatter> sensorMap = new HashMap<String, LineAndPointFormatter>() {{
+        put(Configuration.Shimmer3.ObjectClusterSensorName.GSR_RESISTANCE, // opposite of GSR_CONDUCTANCE
+                new LineAndPointFormatter(Color.rgb(0, 255, 0), null, null));
+        put(Configuration.Shimmer3.ObjectClusterSensorName.ECG_TO_HR_FW,
+                new LineAndPointFormatter(Color.rgb(255, 0, 0), null, null));
     }};
     public static HashMap<String, List<Number>> mPlotDataMap = new HashMap<String, List<Number>>(1);
     public static HashMap<String, XYSeriesShimmer> mPlotSeriesMap = new HashMap<String, XYSeriesShimmer>(1);
@@ -90,8 +95,15 @@ public class MainActivity extends Activity {
     ShimmerDevice shimmerDevice;
     String shimmerBtAdd;
 
+    protected String webApp_BaseUrl = "http://ericab12.altervista.org/new-informed-consent";
+    protected String webApp_LoginUrl = webApp_BaseUrl + "/login.php";
+    protected String webApp_DocumentUrl = webApp_BaseUrl + "/builder.php";
+
+
     @Override
     protected void onStart() {
+        //Connect the Shimmer using Bluetooth
+        connectDevice(null);
         super.onStart();
     }
 
@@ -102,6 +114,7 @@ public class MainActivity extends Activity {
 
         ActivityCompat.requestPermissions(this, new String[]{
                 Manifest.permission.CAMERA,
+                Manifest.permission.BLUETOOTH,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE
         }, 0);
 
@@ -122,10 +135,9 @@ public class MainActivity extends Activity {
             Log.e(LOG_TAG, "Couldn't create ShimmerBluetoothManagerAndroid. Error: " + e);
         }
 
-        connectBtn.setOnClickListener( new View.OnClickListener() {
+        connectBtn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick (View v)
-            {
+            public void onClick(View v) {
                 connectDevice(statsTable);
             }
         });
@@ -138,14 +150,17 @@ public class MainActivity extends Activity {
         dbHelper = new SQLiteDbHelper(getApplicationContext());
 
         // We inject the needed javascript on every loaded page
-        webView.setWebViewClient(new WebViewClient(){
+        webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView webView, String url) {
                 super.onPageFinished(webView, url);
+
+                if(url.contains(webApp_DocumentUrl)) {
                 injectScriptFile(webView, "timeme.js");
                 injectScriptFile(webView, "scrolldetect.js");
-                //injectScriptFile(webView, "webgazer.js");
-                //injectScriptFile(webView, "inject.js");
+                injectScriptFile(webView, "webgazer.js");
+                injectScriptFile(webView, "inject.js");
+                }
             }
 
 
@@ -162,12 +177,14 @@ public class MainActivity extends Activity {
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
+        webSettings.setMediaPlaybackRequiresUserGesture(false);
         webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "Native");
-        webView.loadUrl("http://ericab12.altervista.org/new-informed-consent/login.php");
+        webView.loadUrl(webApp_LoginUrl);
         // TODO remove. testing on localhost due to this
         // "https://sites.google.com/a/chromium.org/dev/Home/chromium-security/deprecating-powerful-features-on-insecure-origins"
-        // camera remote acivation is allowed only on localhost or https served websites
-        //webView.loadUrl("file:///android_asset/index.html");
+        // camera remote activation is allowed only on localhost or https served websites
+        //webView.loadUrl("file:///android_asset/www/calibration.html");
+        //webView.loadUrl("https://stackoverflow.com");
 
         // We set the debug button to hide or show the statistics screen
         debugBtn = findViewById(R.id.debug_btn);
@@ -197,6 +214,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (shimmerDevice != null && shimmerDevice.mBluetoothRadioState == ShimmerBluetooth.BT_STATE.STREAMING) {
+            shimmerDevice.stopStreaming();
+        }
     }
 
     private void injectScriptFile(WebView view, String scriptFile) {
@@ -231,29 +251,27 @@ public class MainActivity extends Activity {
 
     public void connectDevice(View v) {
 
-        /*
         // We check if the bluetooth is ON
         BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mBluetoothAdapter == null) {
             // Device does not support Bluetooth
-            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Bluetooth not supported");
+            Log.e(LOG_TAG, "Error. This device does not support Bluetooth");
+            Toast.makeText(this, "Error. This device does not support Bluetooth", Toast.LENGTH_LONG).show();
         } else {
             if (!mBluetoothAdapter.isEnabled()) {
                 // Bluetooth is not enabled
-                updateDebugText((TextView) findViewById(R.id.debug_shimmer), "Bluetooth turned off");
-            }
-            else{
-                connectDevice(statsTable);
+                Log.e(LOG_TAG, "Error. Shimmer device not paired or Bluetooth is not enabled");
+                Toast.makeText(this, "Error. Shimmer device not paired or Bluetooth is not enabled. " +
+                        "Please close the app and pair or enable Bluetooth", Toast.LENGTH_LONG).show();
+            } else {
+                Intent intent = new Intent(getApplicationContext(), ShimmerBluetoothDialog.class);
+                startActivityForResult(intent, ShimmerBluetoothDialog.REQUEST_CONNECT_SHIMMER);
             }
         }
-        */
-
-        Intent intent = new Intent(getApplicationContext(), ShimmerBluetoothDialog.class);
-        startActivityForResult(intent, ShimmerBluetoothDialog.REQUEST_CONNECT_SHIMMER);
     }
 
     public void startSDLogging(View v) {
-        ((ShimmerBluetooth)shimmerDevice).writeConfigTime(System.currentTimeMillis());
+        ((ShimmerBluetooth) shimmerDevice).writeConfigTime(System.currentTimeMillis());
         shimmerDevice.startSDLogging();
     }
 
@@ -261,12 +279,14 @@ public class MainActivity extends Activity {
         shimmerDevice.stopSDLogging();
     }
 
-    public void stopStreaming(View v){
-        shimmerDevice.stopStreaming();
+    public void stopStreaming(View v) {
+        if (shimmerDevice != null)
+            shimmerDevice.stopStreaming();
     }
 
-    public void startStreaming(View v){
-        shimmerDevice.startStreaming();
+    public void startStreaming(View v) {
+        if (shimmerDevice != null)
+            shimmerDevice.startStreaming();
     }
 
 
@@ -275,7 +295,40 @@ public class MainActivity extends Activity {
         switch (requestCode) {
             case 0: {
                 // Open front facing camera
-                Camera.open(1);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    CameraManager manager = (CameraManager) this.getSystemService(Context.CAMERA_SERVICE);
+                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                        // TODO: Consider calling
+                        //    ActivityCompat#requestPermissions
+                        // here to request the missing permissions, and then overriding
+                        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                        //                                          int[] grantResults)
+                        // to handle the case where the user grants the permission. See the documentation
+                        // for ActivityCompat#requestPermissions for more details.
+                        return;
+                    }
+                    try {
+                        manager.openCamera("1", new CameraDevice.StateCallback() {
+                            @Override
+                            public void onOpened(@NonNull CameraDevice camera) {
+
+                            }
+
+                            @Override
+                            public void onDisconnected(@NonNull CameraDevice camera) {
+
+                            }
+
+                            @Override
+                            public void onError(@NonNull CameraDevice camera, int error) {
+
+                            }
+                        }, new Handler());
+                    } catch (CameraAccessException e) {
+                        e.printStackTrace();
+                    }
+                }
+                else Camera.open(1);
             }
         }
         // other 'case' lines to check for other
@@ -358,7 +411,10 @@ public class MainActivity extends Activity {
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now CONNECTED");
                             updateDebugText((TextView) findViewById(R.id.debug_shimmer), "CONNECTED");
                             shimmerDevice = btManager.getShimmerDeviceBtConnectedFromMac(shimmerBtAdd);
-                            if(shimmerDevice != null) { Log.i(LOG_TAG, "Got the ShimmerDevice!"); }
+                            if(shimmerDevice != null) {
+                                Log.i(LOG_TAG, "Got the ShimmerDevice!");
+                                shimmerDevice.startStreaming();
+                            }
                             else { Log.i(LOG_TAG, "ShimmerDevice returned is NULL!"); }
                             break;
                         case CONNECTING:
@@ -398,7 +454,7 @@ public class MainActivity extends Activity {
      */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if(requestCode == 2) {
+        if(requestCode == ShimmerBluetoothDialog.REQUEST_CONNECT_SHIMMER) {
             if (resultCode == Activity.RESULT_OK) {
                 try {
                     btManager.disconnectAllDevices();   //Disconnect all devices first
