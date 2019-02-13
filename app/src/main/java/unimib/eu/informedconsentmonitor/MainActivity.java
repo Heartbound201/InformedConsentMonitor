@@ -53,6 +53,8 @@ import com.shimmerresearch.driver.Configuration;
 import com.shimmerresearch.driver.FormatCluster;
 import com.shimmerresearch.driver.ObjectCluster;
 import com.shimmerresearch.driver.ShimmerDevice;
+import com.shimmerresearch.driverUtilities.ExpansionBoardDetails;
+import com.shimmerresearch.driverUtilities.SensorDetails;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -74,22 +76,25 @@ public class MainActivity extends Activity {
 
     private final static String LOG_TAG = "Shimmer";
 
-
     protected Button connectBtn;
-    protected ToggleButton streamBtn;
     protected ToggleButton debugBtn;
     protected TableLayout statsTable;
     protected WebView webView;
     protected XYPlot dynamicPlot;
 
     public static HashMap<String, LineAndPointFormatter> sensorMap = new HashMap<String, LineAndPointFormatter>() {{
-        put(Configuration.Shimmer3.ObjectClusterSensorName.GSR_RESISTANCE, // opposite of GSR_CONDUCTANCE
+        put(Configuration.Shimmer3.ObjectClusterSensorName.TIMESTAMP,
+                new LineAndPointFormatter(Color.rgb(0, 0, 0), null, null));
+        put(Configuration.Shimmer3.ObjectClusterSensorName.GSR_RESISTANCE,
                 new LineAndPointFormatter(Color.rgb(0, 255, 0), null, null));
-        put(Configuration.Shimmer3.ObjectClusterSensorName.ECG_TO_HR_FW,
+        put(Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE,
+                new LineAndPointFormatter(Color.rgb(0, 0, 255), null, null));
+        put("PPG_A13",//Configuration.Shimmer3.ObjectClusterSensorName.INT_EXP_ADC_A13,
                 new LineAndPointFormatter(Color.rgb(255, 0, 0), null, null));
     }};
     public static HashMap<String, List<Number>> mPlotDataMap = new HashMap<String, List<Number>>(1);
     public static HashMap<String, XYSeriesShimmer> mPlotSeriesMap = new HashMap<String, XYSeriesShimmer>(1);
+    String currentPlot = Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE;
     SQLiteDbHelper dbHelper;
     ShimmerBluetoothManagerAndroid btManager;
     ShimmerDevice shimmerDevice;
@@ -196,26 +201,16 @@ public class MainActivity extends Activity {
                     statsTable.setVisibility(View.GONE);
             }
         });
-
-        // We set the stream button to start and stop streaming functions
-        streamBtn = findViewById(R.id.stream_btn);
-        streamBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if (((ToggleButton) v).isChecked())
-                    startStreaming(v);
-                else
-                    stopStreaming(v);
-            }
-        });
-
-
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (shimmerDevice != null && shimmerDevice.mBluetoothRadioState == ShimmerBluetooth.BT_STATE.STREAMING) {
-            shimmerDevice.stopStreaming();
+        if (shimmerDevice != null){
+            if(shimmerDevice.mBluetoothRadioState == ShimmerBluetooth.BT_STATE.STREAMING) {
+                shimmerDevice.stopStreaming();
+            }
+            btManager.disconnectAllDevices();
         }
     }
 
@@ -352,12 +347,20 @@ public class MainActivity extends Activity {
                         ObjectCluster objectCluster = (ObjectCluster) msg.obj;
 
                         for (String sensor : sensorMap.keySet()) {
+                            if(currentPlot != sensor){
+                                // is not the sensor we want to plot
+                                continue;
+                            }
                             //Retrieve all possible formats for the current sensor device:
                             Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(sensor);
                             FormatCluster formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
                             if (formatCluster != null) {
                                 double data = formatCluster.mData;
                                 Log.i(LOG_TAG, sensor + ": " + data);
+                            }
+                            else{
+                                Log.i(LOG_TAG, "No data for sensor " + sensor);
+                                continue;
                             }
 
                             // Plot streamed data
@@ -413,6 +416,9 @@ public class MainActivity extends Activity {
                             shimmerDevice = btManager.getShimmerDeviceBtConnectedFromMac(shimmerBtAdd);
                             if(shimmerDevice != null) {
                                 Log.i(LOG_TAG, "Got the ShimmerDevice!");
+                                for (SensorDetails s :shimmerDevice.getListOfEnabledSensors()) {
+                                    Log.d(LOG_TAG, s.mSensorDetailsRef.mGuiFriendlyLabel);
+                                }
                                 shimmerDevice.startStreaming();
                             }
                             else { Log.i(LOG_TAG, "ShimmerDevice returned is NULL!"); }
@@ -474,6 +480,10 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
+    public double getShimmerSamplingRate(){
+        return shimmerDevice.getSamplingRateShimmer();
+    }
+
     public void updateDebugText(final TextView view, final String message){
         // Addressing System.err: Only the original thread that created a view hierarchy can touch its views.
         runOnUiThread(new Runnable() {
@@ -482,6 +492,20 @@ public class MainActivity extends Activity {
                 view.setText(message);
             }
         });
+    }
+
+    public void plotGSRResistance(View v){
+        currentPlot = Configuration.Shimmer3.ObjectClusterSensorName.GSR_RESISTANCE;
+        dynamicPlot.clear();
+    }
+    public void plotGSRConductance(View v){
+        currentPlot = Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE;
+        dynamicPlot.clear();
+    }
+    public void plotPPG(View v){
+        //currentPlot = Configuration.Shimmer3.ObjectClusterSensorName.INT_EXP_ADC_A13;
+        currentPlot = "PPG_A13";
+        dynamicPlot.clear();
     }
 
 }

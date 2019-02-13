@@ -7,6 +7,7 @@ function startTimeMe() {
 }
 
 function startWebgazer() {
+    webgazer.setTracker("clmtrackr");
     webgazer.setGazeListener(function(data, elapsedTime) {
         if (data == null) {
             return;

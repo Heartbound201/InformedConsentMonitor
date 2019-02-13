@@ -15,10 +15,10 @@ public class SessionContract {
         public static final String COLUMN_PAGE_URL = "page_url";
         public static final String COLUMN_TIME = "time_on_page";
         public static final String COLUMN_SCROLL = "scroll_percentage";
-        public static final String COLUMN_GSR = "gsr";
-        public static final String COLUMN_ECG = "ecg";
-        // ECG Right Arm, Left Arm, Right Leg, Left Leg
-
+        public static final String COLUMN_TIMESTAMP = "shimmer_timestamp";
+        public static final String COLUMN_GSR_CONDUCTANCE = "shimmer_gsr_conductance";
+        public static final String COLUMN_GSR_RESISTANCE = "shimmer_gsr_resistance";
+        public static final String COLUMN_PPG_A13 = "shimmer_ppg_a13";
     }
 }
 
