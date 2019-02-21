@@ -4,18 +4,15 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -23,11 +20,11 @@ import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.webkit.PermissionRequest;
+import android.webkit.SslErrorHandler;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -53,7 +50,6 @@ import com.shimmerresearch.driver.Configuration;
 import com.shimmerresearch.driver.FormatCluster;
 import com.shimmerresearch.driver.ObjectCluster;
 import com.shimmerresearch.driver.ShimmerDevice;
-import com.shimmerresearch.driverUtilities.ExpansionBoardDetails;
 import com.shimmerresearch.driverUtilities.SensorDetails;
 
 import java.io.IOException;
@@ -63,11 +59,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import pl.flex_it.androidplot.XYSeriesShimmer;
 import unimib.eu.informedconsentmonitor.datamodel.SQLiteDbHelper;
+import unimib.eu.informedconsentmonitor.utils.ConfigHelper;
 
 import static com.shimmerresearch.android.guiUtilities.PlotFragment.X_AXIS_LENGTH;
 import static com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog.EXTRA_DEVICE_ADDRESS;
@@ -100,10 +95,12 @@ public class MainActivity extends Activity {
     ShimmerDevice shimmerDevice;
     String shimmerBtAdd;
 
-    protected String webApp_BaseUrl = "http://ericab12.altervista.org/new-informed-consent";
-    protected String webApp_LoginUrl = webApp_BaseUrl + "/login.php";
-    protected String webApp_DocumentUrl = webApp_BaseUrl + "/builder.php";
+    // configuration.properties
+    boolean isDebug;
+    String webApp_BaseUrl;
 
+    // database. table WebSession. column id
+    public long lastSession;
 
     @Override
     protected void onStart() {
@@ -122,6 +119,10 @@ public class MainActivity extends Activity {
                 Manifest.permission.BLUETOOTH,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE
         }, 0);
+
+        // Read configuration properties
+        isDebug = "true".equalsIgnoreCase(ConfigHelper.getConfigValue(this, "debug"));
+        webApp_BaseUrl = ConfigHelper.getConfigValue(this, "webapp_url");
 
         // Layout elements
         connectBtn = findViewById(R.id.connect_btn);
@@ -143,13 +144,27 @@ public class MainActivity extends Activity {
         connectBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                connectDevice(statsTable);
+                connectDevice(null);
+            }
+        });
+
+        // We set the debug button to hide or show the statistics screen
+        debugBtn = findViewById(R.id.debug_btn);
+        debugBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (((ToggleButton) v).isChecked())
+                    statsTable.setVisibility(View.VISIBLE);
+                else
+                    statsTable.setVisibility(View.GONE);
             }
         });
 
         webView.clearCache(false);
-        // Added only to be able to debug the application through chrome://inspect
-        WebView.setWebContentsDebuggingEnabled(true);
+        if(isDebug) {
+            // Added only to be able to debug the application through chrome://inspect
+            WebView.setWebContentsDebuggingEnabled(true);
+            debugBtn.setVisibility(View.VISIBLE);
+        }
 
         // Open SQLite Db
         dbHelper = new SQLiteDbHelper(getApplicationContext());
@@ -160,15 +175,23 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView webView, String url) {
                 super.onPageFinished(webView, url);
 
-                if(url.contains(webApp_DocumentUrl)) {
-                injectScriptFile(webView, "timeme.js");
-                injectScriptFile(webView, "scrolldetect.js");
-                injectScriptFile(webView, "webgazer.js");
-                injectScriptFile(webView, "inject.js");
+                if(url.contains(webApp_BaseUrl + "/builder.php")) {
+                injectScriptFile(webView, "js/webgazer.js");
+                injectScriptFile(webView, "js/inject.js");
                 }
             }
-
-
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                webView.loadUrl(url);
+                return true;
+            }
+            // TODO remove this once the webapp is deployed with a proper certificate
+            @Override
+            public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+                //super.onReceivedSslError(view, handler, error);
+                Log.d("SSL", error.toString());
+                handler.proceed();
+            }
         });
         webView.setWebChromeClient(new WebChromeClient() {
             // Grant permissions for cam
@@ -184,23 +207,10 @@ public class MainActivity extends Activity {
         webSettings.setDomStorageEnabled(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
         webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "Native");
-        webView.loadUrl(webApp_LoginUrl);
-        // TODO remove. testing on localhost due to this
+        webView.loadUrl(webApp_BaseUrl + "/login.php");
+        // IMPORTANT !!!
         // "https://sites.google.com/a/chromium.org/dev/Home/chromium-security/deprecating-powerful-features-on-insecure-origins"
         // camera remote activation is allowed only on localhost or https served websites
-        //webView.loadUrl("file:///android_asset/www/calibration.html");
-        //webView.loadUrl("https://stackoverflow.com");
-
-        // We set the debug button to hide or show the statistics screen
-        debugBtn = findViewById(R.id.debug_btn);
-        debugBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if (((ToggleButton) v).isChecked())
-                    statsTable.setVisibility(View.VISIBLE);
-                else
-                    statsTable.setVisibility(View.GONE);
-            }
-        });
     }
 
     @Override
@@ -346,49 +356,36 @@ public class MainActivity extends Activity {
                         //Print data to Logcat
                         ObjectCluster objectCluster = (ObjectCluster) msg.obj;
 
-                        for (String sensor : sensorMap.keySet()) {
-                            if(currentPlot != sensor){
-                                // is not the sensor we want to plot
-                                continue;
-                            }
-                            //Retrieve all possible formats for the current sensor device:
-                            Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(sensor);
-                            FormatCluster formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
-                            if (formatCluster != null) {
-                                double data = formatCluster.mData;
-                                Log.i(LOG_TAG, sensor + ": " + data);
-                            }
-                            else{
-                                Log.i(LOG_TAG, "No data for sensor " + sensor);
-                                continue;
-                            }
+                        double timestamp = 0;
+                        double gsrConductance = 0;
+                        double gsrResistance = 0;
+                        double ppt = 0;
 
-                            // Plot streamed data
-                            List<Number> data;
-                            if (mPlotDataMap.get(sensor)!=null){
-                                data = mPlotDataMap.get(sensor);
-                            } else {
-                                data = new ArrayList<Number>();
-                            }
-                            if (data.size()>X_AXIS_LENGTH){
-                                //data.clear();
-                                data.remove(0);
-                            }
-                            data.add(formatCluster.mData);
-                            mPlotDataMap.put(sensor, data);
-
-                            //next check if the series exist
-                            if (mPlotSeriesMap.get(sensor)!=null){
-                                //if the series exist get the line format
-                                mPlotSeriesMap.get(sensor).updateData(data);
-                            } else {
-                                XYSeriesShimmer series = new XYSeriesShimmer(data, 0, sensor);
-                                mPlotSeriesMap.put(sensor, series);
-                                dynamicPlot.addSeries(mPlotSeriesMap.get(sensor), sensorMap.get(sensor));
-                            }
+                        Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.TIMESTAMP);
+                        FormatCluster formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
+                        if (formatCluster != null) {
+                            timestamp = formatCluster.mData;
                         }
+                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE);
+                        formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
+                        if (formatCluster != null) {
+                            gsrConductance = formatCluster.mData;
+                        }
+                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.GSR_RESISTANCE);
+                        formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
+                        if (formatCluster != null) {
+                            gsrResistance = formatCluster.mData;
+                        }
+                        allFormats = objectCluster.getCollectionOfFormatClusters("PPG_A13");
+                        formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
+                        if (formatCluster != null) {
+                            ppt = formatCluster.mData;
+                        }
+
+                        dbHelper.insertShimmerDataEntry(lastSession, Double.doubleToLongBits(timestamp), gsrConductance, gsrResistance, ppt);
+
+                        plot(objectCluster);
                     }
-                    dynamicPlot.redraw();
                     break;
                 case Shimmer.MESSAGE_TOAST:
                     /** Toast messages sent from {@link Shimmer} are received here. E.g. device xxxx now streaming.
@@ -484,6 +481,17 @@ public class MainActivity extends Activity {
         return shimmerDevice.getSamplingRateShimmer();
     }
 
+    public void exportCsv(View v){
+        String message = "tables are exported";
+        try {
+            dbHelper.exportCsv();
+        } catch (IOException e) {
+            e.printStackTrace();
+            message = "error during csv export";
+        }
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+    }
+
     public void updateDebugText(final TextView view, final String message){
         // Addressing System.err: Only the original thread that created a view hierarchy can touch its views.
         runOnUiThread(new Runnable() {
@@ -507,5 +515,48 @@ public class MainActivity extends Activity {
         currentPlot = "PPG_A13";
         dynamicPlot.clear();
     }
+    private void plot(ObjectCluster objectCluster){
+        for (String sensor : sensorMap.keySet()) {
+            if(currentPlot != sensor){
+                // is not the sensor we want to plot
+                continue;
+            }
+            //Retrieve all possible formats for the current sensor device:
+            Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(sensor);
+            FormatCluster formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
+            if (formatCluster != null) {
+                double data = formatCluster.mData;
+                Log.i(LOG_TAG, sensor + ": " + data);
+            }
+            else{
+                Log.i(LOG_TAG, "No data for sensor " + sensor);
+                continue;
+            }
 
+            // Plot streamed data
+            List<Number> data;
+            if (mPlotDataMap.get(sensor)!=null){
+                data = mPlotDataMap.get(sensor);
+            } else {
+                data = new ArrayList<Number>();
+            }
+            if (data.size()>X_AXIS_LENGTH){
+                //data.clear();
+                data.remove(0);
+            }
+            data.add(formatCluster.mData);
+            mPlotDataMap.put(sensor, data);
+
+            //next check if the series exist
+            if (mPlotSeriesMap.get(sensor)!=null){
+                //if the series exist get the line format
+                mPlotSeriesMap.get(sensor).updateData(data);
+            } else {
+                XYSeriesShimmer series = new XYSeriesShimmer(data, 0, sensor);
+                mPlotSeriesMap.put(sensor, series);
+                dynamicPlot.addSeries(mPlotSeriesMap.get(sensor), sensorMap.get(sensor));
+            }
+        }
+        dynamicPlot.redraw();
+    }
 }

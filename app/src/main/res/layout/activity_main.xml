@@ -12,6 +12,7 @@
 
     <ToggleButton
         android:id="@+id/debug_btn"
+        android:visibility="gone"
         android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"
         android:textOn="Debug"
@@ -28,14 +29,26 @@
         android:layout_marginStart="8dp"
         android:layout_marginLeft="8dp"
         android:layout_marginTop="0dp"
-        android:text="Connect"
+        android:text="Connect shimmer"
         app:layout_constraintStart_toEndOf="@+id/debug_btn"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/export_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_marginStart="8dp"
+        android:text="Export CSV"
+        android:onClick="exportCsv"
+        app:layout_constraintStart_toEndOf="@+id/connect_btn"
         app:layout_constraintTop_toTopOf="parent" />
 
     <TableLayout
         android:id="@+id/debug_stats"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginEnd="8dp"
         android:layout_marginBottom="8dp"
@@ -71,7 +84,7 @@
 
             <TextView
                 android:paddingRight="20dp"
-                android:text="Scroll"
+                android:text="Paragraph "
                 android:textColor="@android:color/white" />
 
             <TextView
@@ -85,20 +98,7 @@
 
             <TextView
                 android:paddingRight="20dp"
-                android:text="Webgazer"
-                android:textColor="@android:color/white" />
-
-            <TextView
-                android:id="@+id/debug_webgazer"
-                android:text="-"
-                android:textColor="@android:color/white" />
-        </TableRow>
-
-        <TableRow>
-
-            <TextView
-                android:paddingRight="20dp"
-                android:text="Shimmer"
+                android:text="Shimmer Status "
                 android:textColor="@android:color/white" />
 
             <TextView
@@ -140,5 +140,4 @@
 
     </TableLayout>
 
-    <!--<include layout="@layout/footer" />-->
 </android.support.constraint.ConstraintLayout>

@@ -6,30 +6,53 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Environment;
+import android.text.format.DateFormat;
 import android.util.Log;
 
 import com.opencsv.CSVWriter;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
-import unimib.eu.informedconsentmonitor.datamodel.SessionContract.SessionEntry;
+import unimib.eu.informedconsentmonitor.datamodel.DatabaseContract.JavascriptDataEntry;
+import unimib.eu.informedconsentmonitor.datamodel.DatabaseContract.SessionEntry;
+import unimib.eu.informedconsentmonitor.datamodel.DatabaseContract.ShimmerDataEntry;
 
 public class SQLiteDbHelper extends SQLiteOpenHelper {
     public static final String LOG_TAG = "SQLite";
     // If you change the database schema, you must increment the database version.
     public static final int DATABASE_VERSION = 1;
     public static final String DATABASE_NAME = "InformedConsentMonitor.db";
-    private final String CSV_FILE = "data.csv";
+    private final String STORAGE_FOLDER = "/InformedConsent/";
 
-    private static final String SQL_CREATE_ENTRIES =
+    private static final String SQL_CREATE_SESSION_ENTRY =
             "CREATE TABLE " + SessionEntry.TABLE_NAME + " (" +
-                    SessionEntry._ID + " INTEGER PRIMARY KEY," +
-                    SessionEntry.COLUMN_DATE + " TEXT," +
+                    SessionEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    SessionEntry.COLUMN_TIMESTAMP_IN + " TEXT," +
+                    SessionEntry.COLUMN_TIMESTAMP_OUT + " TEXT," +
                     SessionEntry.COLUMN_PAGE_URL + " TEXT," +
-                    SessionEntry.COLUMN_TIME + " TEXT," +
-                    SessionEntry.COLUMN_SCROLL + " TEXT)";
+                    SessionEntry.COLUMN_SHIMMER_CONNECTED + " INTEGER DEFAULT 0);";
+    private static final String SQL_CREATE_SHIMMER_ENTRY =
+            "CREATE TABLE " + ShimmerDataEntry.TABLE_NAME + " (" +
+                    ShimmerDataEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    ShimmerDataEntry.COLUMN_ID_SESSION + " INTEGER," +
+                    ShimmerDataEntry.COLUMN_TIMESTAMP + " TEXT," +
+                    ShimmerDataEntry.COLUMN_GSR_CONDUCTANCE + " REAL," +
+                    ShimmerDataEntry.COLUMN_GSR_RESISTANCE + " REAL," +
+                    ShimmerDataEntry.COLUMN_PPG_A13 + " REAL);";
+    private static final String SQL_CREATE_JAVASCRIPT_ENTRY =
+            "CREATE TABLE " + JavascriptDataEntry.TABLE_NAME + " (" +
+                    JavascriptDataEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    JavascriptDataEntry.COLUMN_ID_SESSION + " INTEGER," +
+                    JavascriptDataEntry.COLUMN_TIMESTAMP + " TEXT," +
+                    JavascriptDataEntry.COLUMN_PARAGRAPHS + " BLOB," +
+                    JavascriptDataEntry.COLUMN_WEBGAZER + " BLOB);";
 
     private static final String SQL_DELETE_ENTRIES =
             "DROP TABLE IF EXISTS " + SessionEntry.TABLE_NAME;
@@ -38,7 +61,9 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
     public void onCreate(SQLiteDatabase db) {
-        db.execSQL(SQL_CREATE_ENTRIES);
+        db.execSQL(SQL_CREATE_SESSION_ENTRY);
+        db.execSQL(SQL_CREATE_SHIMMER_ENTRY);
+        db.execSQL(SQL_CREATE_JAVASCRIPT_ENTRY);
         Log.d(LOG_TAG, db.getPath());
     }
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
@@ -51,45 +76,91 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         onUpgrade(db, oldVersion, newVersion);
     }
 
-    public void insertEntry(String url, String time, String scroll){
+    public long insertSessionEntry(long timestamp, String url, boolean shimmerConnect){
         // Gets the data repository in write mode
         SQLiteDatabase db = this.getWritableDatabase();
 
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
-        values.put(SessionEntry.COLUMN_DATE, new Date().toString());
+        values.put(SessionEntry.COLUMN_TIMESTAMP_IN, timestamp); //timestamp2DateString(timestamp));
         values.put(SessionEntry.COLUMN_PAGE_URL, url);
-        values.put(SessionEntry.COLUMN_TIME, time);
-        values.put(SessionEntry.COLUMN_SCROLL, scroll);
+        values.put(SessionEntry.COLUMN_SHIMMER_CONNECTED, shimmerConnect?1:0);
 
         // Insert the new row, returning the primary key value of the new row
         long newRowId = db.insert(SessionEntry.TABLE_NAME, null, values);
-        Log.d(LOG_TAG, "new row insert. id: " + newRowId);
+        Log.d(LOG_TAG, "new session entry row insert. id: " + newRowId);
+        return newRowId;
+    }
+
+    public long insertShimmerDataEntry(long session, long timestamp, double gsrConductance,
+                                       double gsrResistance, double ppt){
+        // Gets the data repository in write mode
+        SQLiteDatabase db = this.getWritableDatabase();
+
+        // Create a new map of values, where column names are the keys
+        ContentValues values = new ContentValues();
+        values.put(ShimmerDataEntry.COLUMN_ID_SESSION, session);
+        values.put(ShimmerDataEntry.COLUMN_TIMESTAMP, timestamp); //timestamp2DateString(timestamp));
+        values.put(ShimmerDataEntry.COLUMN_GSR_CONDUCTANCE, gsrConductance);
+        values.put(ShimmerDataEntry.COLUMN_GSR_RESISTANCE, gsrResistance);
+        values.put(ShimmerDataEntry.COLUMN_PPG_A13, ppt);
+
+        // Insert the new row, returning the primary key value of the new row
+        long newRowId = db.insert(ShimmerDataEntry.TABLE_NAME, null, values);
+        Log.d(LOG_TAG, "new shimmer data row insert. id: " + newRowId);
+        return newRowId;
+    }
+
+    public long insertJavascriptDataEntry(long session, long timestamp, String paragraphs,
+                                          String webgazer){
+        // Gets the data repository in write mode
+        SQLiteDatabase db = this.getWritableDatabase();
+
+        // Create a new map of values, where column names are the keys
+        ContentValues values = new ContentValues();
+        values.put(JavascriptDataEntry.COLUMN_ID_SESSION, session);
+        values.put(JavascriptDataEntry.COLUMN_TIMESTAMP, timestamp); //timestamp2DateString(timestamp));
+        values.put(JavascriptDataEntry.COLUMN_PARAGRAPHS, paragraphs);
+        values.put(JavascriptDataEntry.COLUMN_WEBGAZER, webgazer);
+
+        // Insert the new row, returning the primary key value of the new row
+        long newRowId = db.insert(SessionEntry.TABLE_NAME, null, values);
+        Log.d(LOG_TAG, "new javascript data row insert. id: " + newRowId);
+        return newRowId;
     }
 
     private void clearData(){
         this.getWritableDatabase().execSQL("delete from "+ SessionEntry.TABLE_NAME);
+        this.getWritableDatabase().execSQL("delete from "+ ShimmerDataEntry.TABLE_NAME);
+        this.getWritableDatabase().execSQL("delete from "+ JavascriptDataEntry.TABLE_NAME);
     }
 
-    public void exportCsv(){
-        File exportDir = new File(Environment.getExternalStorageDirectory(), "");
+    public void exportCsv() throws IOException {
+        File exportDir = new File(Environment.getExternalStorageDirectory() + STORAGE_FOLDER, "");
         if (!exportDir.exists())
         {
             exportDir.mkdirs();
         }
 
-        File file = new File(exportDir, CSV_FILE);
-        try
-        {
+        HashMap<String, String> fileMap = new HashMap<String, String>(){{
+            put(SessionEntry.TABLE_NAME, "_websessions.csv");
+            put(ShimmerDataEntry.TABLE_NAME, "_shimmerdata.csv");
+            put(JavascriptDataEntry.TABLE_NAME, "_javascriptdata.csv");
+        }};
+
+        for (Map.Entry<String, String> entry : fileMap.entrySet()) {
+
+            String csvFileName =  new SimpleDateFormat("yyyymmdd").format(new Date()) + entry.getValue();
+            File file = new File(exportDir, csvFileName);
+
             file.createNewFile();
             CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
             SQLiteDatabase db = this.getReadableDatabase();
-            Cursor curCSV = db.rawQuery("SELECT * FROM " + SessionEntry.TABLE_NAME,null);
+            Cursor curCSV = db.rawQuery("SELECT * FROM " + entry.getKey(), null);
             csvWrite.writeNext(curCSV.getColumnNames());
-            while(curCSV.moveToNext())
-            {
+            while (curCSV.moveToNext()) {
                 //Which column you want to export
-                String arrStr[] ={
+                String arrStr[] = {
                         curCSV.getString(0),
                         curCSV.getString(1),
                         curCSV.getString(2),
@@ -99,11 +170,15 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
             }
             csvWrite.close();
             curCSV.close();
-            Log.d(LOG_TAG, SessionEntry.TABLE_NAME + "Table exported as .csv at " + Environment.getExternalStorageDirectory()+"/"+CSV_FILE);
+            String message = entry.getKey() + " table exported as .csv at " + file.getAbsolutePath();
+            Log.d(LOG_TAG, message);
+
         }
-        catch(Exception sqlEx)
-        {
-            Log.e(LOG_TAG, sqlEx.getMessage(), sqlEx);
-        }
+    }
+
+    public String timestamp2DateString(String timestamp){
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(Long.getLong(timestamp));
+        return DateFormat.format("dd-MM-yyyy hh:mm:ss", cal).toString();
     }
 }
