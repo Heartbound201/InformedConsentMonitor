@@ -36,8 +36,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
                     SessionEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
                     SessionEntry.COLUMN_TIMESTAMP_IN + " TEXT," +
                     SessionEntry.COLUMN_TIMESTAMP_OUT + " TEXT," +
-                    SessionEntry.COLUMN_PAGE_URL + " TEXT," +
-                    SessionEntry.COLUMN_SHIMMER_CONNECTED + " INTEGER DEFAULT 0);";
+                    SessionEntry.COLUMN_PAGE_URL + " TEXT);";
     private static final String SQL_CREATE_SHIMMER_ENTRY =
             "CREATE TABLE " + ShimmerDataEntry.TABLE_NAME + " (" +
                     ShimmerDataEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -76,15 +75,14 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         onUpgrade(db, oldVersion, newVersion);
     }
 
-    public long insertSessionEntry(long timestamp, String url, boolean shimmerConnect){
+    public long insertSessionEntry(long timestamp, String url){
         // Gets the data repository in write mode
         SQLiteDatabase db = this.getWritableDatabase();
 
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
-        values.put(SessionEntry.COLUMN_TIMESTAMP_IN, timestamp); //timestamp2DateString(timestamp));
+        values.put(SessionEntry.COLUMN_TIMESTAMP_IN, timestamp2DateString(timestamp));
         values.put(SessionEntry.COLUMN_PAGE_URL, url);
-        values.put(SessionEntry.COLUMN_SHIMMER_CONNECTED, shimmerConnect?1:0);
 
         // Insert the new row, returning the primary key value of the new row
         long newRowId = db.insert(SessionEntry.TABLE_NAME, null, values);
@@ -93,17 +91,18 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
     }
 
     public long insertShimmerDataEntry(long session, long timestamp, double gsrConductance,
-                                       double gsrResistance, double ppt){
+                                       double gsrResistance, double ppg){
         // Gets the data repository in write mode
         SQLiteDatabase db = this.getWritableDatabase();
 
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
         values.put(ShimmerDataEntry.COLUMN_ID_SESSION, session);
-        values.put(ShimmerDataEntry.COLUMN_TIMESTAMP, timestamp); //timestamp2DateString(timestamp));
+        values.put(ShimmerDataEntry.COLUMN_TIMESTAMP,
+                DateFormat.format("dd-MM-yyyy hh:mm:ss", timestamp).toString());
         values.put(ShimmerDataEntry.COLUMN_GSR_CONDUCTANCE, gsrConductance);
         values.put(ShimmerDataEntry.COLUMN_GSR_RESISTANCE, gsrResistance);
-        values.put(ShimmerDataEntry.COLUMN_PPG_A13, ppt);
+        values.put(ShimmerDataEntry.COLUMN_PPG_A13, ppg);
 
         // Insert the new row, returning the primary key value of the new row
         long newRowId = db.insert(ShimmerDataEntry.TABLE_NAME, null, values);
@@ -119,7 +118,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
         values.put(JavascriptDataEntry.COLUMN_ID_SESSION, session);
-        values.put(JavascriptDataEntry.COLUMN_TIMESTAMP, timestamp); //timestamp2DateString(timestamp));
+        values.put(JavascriptDataEntry.COLUMN_TIMESTAMP, timestamp2DateString(timestamp));
         values.put(JavascriptDataEntry.COLUMN_PARAGRAPHS, paragraphs);
         values.put(JavascriptDataEntry.COLUMN_WEBGAZER, webgazer);
 
@@ -150,7 +149,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
 
         for (Map.Entry<String, String> entry : fileMap.entrySet()) {
 
-            String csvFileName =  new SimpleDateFormat("yyyymmdd").format(new Date()) + entry.getValue();
+            String csvFileName =  new SimpleDateFormat("yyyyMMdd").format(new Date()) + entry.getValue();
             File file = new File(exportDir, csvFileName);
 
             file.createNewFile();
@@ -176,9 +175,9 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         }
     }
 
-    public String timestamp2DateString(String timestamp){
+    public String timestamp2DateString(long timestamp){
         Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(Long.getLong(timestamp));
+        cal.setTimeInMillis(timestamp);
         return DateFormat.format("dd-MM-yyyy hh:mm:ss", cal).toString();
     }
 }

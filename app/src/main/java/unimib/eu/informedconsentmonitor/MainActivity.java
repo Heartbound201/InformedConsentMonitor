@@ -56,7 +56,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
@@ -94,6 +96,7 @@ public class MainActivity extends Activity {
     ShimmerBluetoothManagerAndroid btManager;
     ShimmerDevice shimmerDevice;
     String shimmerBtAdd;
+    Date shimmerStartStreamingTime;
 
     // configuration.properties
     boolean isDebug;
@@ -208,6 +211,7 @@ public class MainActivity extends Activity {
         webSettings.setMediaPlaybackRequiresUserGesture(false);
         webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "Native");
         webView.loadUrl(webApp_BaseUrl + "/login.php");
+        Log.d("DEBUG", "webapp url is " + webApp_BaseUrl + "/login.php");
         // IMPORTANT !!!
         // "https://sites.google.com/a/chromium.org/dev/Home/chromium-security/deprecating-powerful-features-on-insecure-origins"
         // camera remote activation is allowed only on localhost or https served websites
@@ -359,7 +363,7 @@ public class MainActivity extends Activity {
                         double timestamp = 0;
                         double gsrConductance = 0;
                         double gsrResistance = 0;
-                        double ppt = 0;
+                        double ppg = 0;
 
                         Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.TIMESTAMP);
                         FormatCluster formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
@@ -379,12 +383,17 @@ public class MainActivity extends Activity {
                         allFormats = objectCluster.getCollectionOfFormatClusters("PPG_A13");
                         formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
                         if (formatCluster != null) {
-                            ppt = formatCluster.mData;
+                            ppg = formatCluster.mData;
                         }
 
-                        dbHelper.insertShimmerDataEntry(lastSession, Double.doubleToLongBits(timestamp), gsrConductance, gsrResistance, ppt);
+                        Log.d(LOG_TAG, "DATA_PACKET: " +
+                                "\n Timestamp: " + timestamp +
+                                "\n GSR Conductance: " + gsrConductance +
+                                "\n GSR Resistance: " + gsrResistance +
+                                "\n PPG: " + ppg);
+                        dbHelper.insertShimmerDataEntry(lastSession, shimmerStartStreamingTime.getTime() + (long)timestamp, gsrConductance, gsrResistance, ppg);
 
-                        plot(objectCluster);
+                        //plot(objectCluster);
                     }
                     break;
                 case Shimmer.MESSAGE_TOAST:
@@ -417,6 +426,7 @@ public class MainActivity extends Activity {
                                     Log.d(LOG_TAG, s.mSensorDetailsRef.mGuiFriendlyLabel);
                                 }
                                 shimmerDevice.startStreaming();
+                                shimmerStartStreamingTime = new Date();
                             }
                             else { Log.i(LOG_TAG, "ShimmerDevice returned is NULL!"); }
                             break;

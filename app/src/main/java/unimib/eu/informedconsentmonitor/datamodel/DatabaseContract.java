@@ -14,7 +14,6 @@ public class DatabaseContract {
         public static final String COLUMN_TIMESTAMP_IN = "timestamp_in";
         public static final String COLUMN_TIMESTAMP_OUT = "timestamp_out";
         public static final String COLUMN_PAGE_URL = "url";
-        public static final String COLUMN_SHIMMER_CONNECTED = "is_shimmer_connected";
     }
 
     public static class ShimmerDataEntry implements BaseColumns {
