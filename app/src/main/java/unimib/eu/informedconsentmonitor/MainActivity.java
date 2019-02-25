@@ -54,9 +54,9 @@ import com.shimmerresearch.driverUtilities.SensorDetails;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.Timestamp;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -181,6 +181,9 @@ public class MainActivity extends Activity {
                 if(url.contains(webApp_BaseUrl + "/builder.php")) {
                 injectScriptFile(webView, "js/webgazer.js");
                 injectScriptFile(webView, "js/inject.js");
+                }
+                else if(url.contains(webApp_BaseUrl + "/response.php")) {
+                    dbHelper.updateWebSessionEntry(lastSession, System.currentTimeMillis());
                 }
             }
             @Override

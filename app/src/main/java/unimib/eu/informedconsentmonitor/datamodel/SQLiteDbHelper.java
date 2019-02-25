@@ -17,8 +17,6 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 import unimib.eu.informedconsentmonitor.datamodel.DatabaseContract.JavascriptDataEntry;
 import unimib.eu.informedconsentmonitor.datamodel.DatabaseContract.SessionEntry;
@@ -75,7 +73,21 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         onUpgrade(db, oldVersion, newVersion);
     }
 
-    public long insertSessionEntry(long timestamp, String url){
+    public long updateWebSessionEntry(long id, long timestamp){
+        // Gets the data repository in write mode
+        SQLiteDatabase db = this.getWritableDatabase();
+
+        // Create a new map of values, where column names are the keys
+        ContentValues values = new ContentValues();
+        values.put(SessionEntry.COLUMN_TIMESTAMP_OUT, timestamp2DateString(timestamp));
+
+        // Insert the new row, returning the primary key value of the new row
+        long newRowId = db.update(SessionEntry.TABLE_NAME, values, SessionEntry._ID + " = ?", new String[]{Long.toString(id)});
+        Log.d(LOG_TAG, "session entry row updated. id: " + newRowId);
+        return newRowId;
+    }
+
+    public long insertWebSessionEntry(long timestamp, String url){
         // Gets the data repository in write mode
         SQLiteDatabase db = this.getWritableDatabase();
 
@@ -123,7 +135,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         values.put(JavascriptDataEntry.COLUMN_WEBGAZER, webgazer);
 
         // Insert the new row, returning the primary key value of the new row
-        long newRowId = db.insert(SessionEntry.TABLE_NAME, null, values);
+        long newRowId = db.insert(JavascriptDataEntry.TABLE_NAME, null, values);
         Log.d(LOG_TAG, "new javascript data row insert. id: " + newRowId);
         return newRowId;
     }
@@ -141,21 +153,39 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
             exportDir.mkdirs();
         }
 
-        HashMap<String, String> fileMap = new HashMap<String, String>(){{
-            put(SessionEntry.TABLE_NAME, "_websessions.csv");
-            put(ShimmerDataEntry.TABLE_NAME, "_shimmerdata.csv");
-            put(JavascriptDataEntry.TABLE_NAME, "_javascriptdata.csv");
-        }};
-
-        for (Map.Entry<String, String> entry : fileMap.entrySet()) {
-
-            String csvFileName =  new SimpleDateFormat("yyyyMMdd").format(new Date()) + entry.getValue();
+        // Exporting WebSession Table
+        {
+            String csvFileName = new SimpleDateFormat("yyyyMMdd").format(new Date()) + "_websessions.csv";
             File file = new File(exportDir, csvFileName);
 
             file.createNewFile();
             CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
             SQLiteDatabase db = this.getReadableDatabase();
-            Cursor curCSV = db.rawQuery("SELECT * FROM " + entry.getKey(), null);
+            Cursor curCSV = db.rawQuery("SELECT * FROM " + SessionEntry.TABLE_NAME, null);
+            csvWrite.writeNext(curCSV.getColumnNames());
+            while (curCSV.moveToNext()) {
+                //Which column you want to export
+                String arrStr[] = {
+                        curCSV.getString(0),
+                        curCSV.getString(1),
+                        curCSV.getString(2),
+                        curCSV.getString(3)};
+                csvWrite.writeNext(arrStr);
+            }
+            csvWrite.close();
+            curCSV.close();
+            String message = SessionEntry.TABLE_NAME + " table exported as .csv at " + file.getAbsolutePath();
+            Log.d(LOG_TAG, message);
+        }
+        // Exporting JavascriptData Table
+        {
+            String csvFileName = new SimpleDateFormat("yyyyMMdd").format(new Date()) + "_javascriptdata.csv";
+            File file = new File(exportDir, csvFileName);
+
+            file.createNewFile();
+            CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
+            SQLiteDatabase db = this.getReadableDatabase();
+            Cursor curCSV = db.rawQuery("SELECT * FROM " + JavascriptDataEntry.TABLE_NAME, null);
             csvWrite.writeNext(curCSV.getColumnNames());
             while (curCSV.moveToNext()) {
                 //Which column you want to export
@@ -169,15 +199,41 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
             }
             csvWrite.close();
             curCSV.close();
-            String message = entry.getKey() + " table exported as .csv at " + file.getAbsolutePath();
+            String message = JavascriptDataEntry.TABLE_NAME + " table exported as .csv at " + file.getAbsolutePath();
             Log.d(LOG_TAG, message);
-
         }
+        // Exporting ShimmerData Table
+        {
+            String csvFileName = new SimpleDateFormat("yyyyMMdd").format(new Date()) + "_shimmerdata.csv";
+            File file = new File(exportDir, csvFileName);
+
+            file.createNewFile();
+            CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
+            SQLiteDatabase db = this.getReadableDatabase();
+            Cursor curCSV = db.rawQuery("SELECT * FROM " + ShimmerDataEntry.TABLE_NAME, null);
+            csvWrite.writeNext(curCSV.getColumnNames());
+            while (curCSV.moveToNext()) {
+                //Which column you want to export
+                String arrStr[] = {
+                        curCSV.getString(0),
+                        curCSV.getString(1),
+                        curCSV.getString(2),
+                        curCSV.getString(3),
+                        curCSV.getString(4),
+                        curCSV.getString(5)};
+                csvWrite.writeNext(arrStr);
+            }
+            csvWrite.close();
+            curCSV.close();
+            String message = ShimmerDataEntry.TABLE_NAME + " table exported as .csv at " + file.getAbsolutePath();
+            Log.d(LOG_TAG, message);
+        }
+
     }
 
     public String timestamp2DateString(long timestamp){
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(timestamp);
-        return DateFormat.format("dd-MM-yyyy hh:mm:ss", cal).toString();
+        return DateFormat.format("dd-MM-yyyy HH:mm:ss", cal).toString();
     }
 }

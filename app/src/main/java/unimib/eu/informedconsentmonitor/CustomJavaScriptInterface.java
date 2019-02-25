@@ -5,8 +5,6 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.widget.TextView;
 
-import java.util.Date;
-
 import unimib.eu.informedconsentmonitor.datamodel.SQLiteDbHelper;
 
 public class CustomJavaScriptInterface {
@@ -25,8 +23,14 @@ public class CustomJavaScriptInterface {
     @JavascriptInterface
     public void trackWebSession(long timestamp, String url){
         Log.d("JavascriptInterface", "timestamp: " + timestamp + " url: " + url);
-        lastSession = mDbHelper.insertSessionEntry(timestamp, url);
+        lastSession = mDbHelper.insertWebSessionEntry(timestamp, url);
         parentActivity.lastSession = lastSession;
+    }
+
+    @JavascriptInterface
+    public void updateWebSession(long timestamp){
+        Log.d("JavascriptInterface", "timestamp: " + timestamp);
+        mDbHelper.updateWebSessionEntry(lastSession, timestamp);
     }
 
     @JavascriptInterface
