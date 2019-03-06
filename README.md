@@ -3,6 +3,7 @@
 This is an android application aimed at monitoring the patient body reaction an stress level during the reading of the informed consent.
 The informed consent itself is shown to the user through a webapp (https://github.com/Heartbound201/informed-consent-v2) and displayed on the webview of the android device. An Internet connection is therefore required.
 Meanwhile the body response is monitored through a device (Shimmer3 GSR+ Unit) which measures skin conductance and heart rate. The connection between the sensor device and the android one is a bluetooth connection.
+
 Data from the sensor device is paired from data extracted from the webapp itself, that is what paragraph is currently displayed on the monitor and where is the patient looking at, in order to associate the stress level to a specific paragraph.
 The Eye tracking is achieved using the webgazer library (https://github.com/brownhci/WebGazer)
 All the data is saved locally on a SQLite server and can exported as .csv files.
