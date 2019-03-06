@@ -179,8 +179,12 @@ public class MainActivity extends Activity {
                 super.onPageFinished(webView, url);
 
                 if(url.contains(webApp_BaseUrl + "/builder.php")) {
-                injectScriptFile(webView, "js/webgazer.js");
-                injectScriptFile(webView, "js/inject.js");
+                    injectScriptFile(webView, "js/webgazer.js");
+                    injectScriptFile(webView, "js/inject.js");
+                    if(shimmerDevice != null){
+                        shimmerDevice.startStreaming();
+                        shimmerStartStreamingTime = new Date();
+                    }
                 }
                 else if(url.contains(webApp_BaseUrl + "/response.php")) {
                     dbHelper.updateWebSessionEntry(lastSession, System.currentTimeMillis());
@@ -229,6 +233,7 @@ public class MainActivity extends Activity {
             }
             btManager.disconnectAllDevices();
         }
+        dbHelper.clearData();
     }
 
     private void injectScriptFile(WebView view, String scriptFile) {
@@ -425,11 +430,6 @@ public class MainActivity extends Activity {
                             shimmerDevice = btManager.getShimmerDeviceBtConnectedFromMac(shimmerBtAdd);
                             if(shimmerDevice != null) {
                                 Log.i(LOG_TAG, "Got the ShimmerDevice!");
-                                for (SensorDetails s :shimmerDevice.getListOfEnabledSensors()) {
-                                    Log.d(LOG_TAG, s.mSensorDetailsRef.mGuiFriendlyLabel);
-                                }
-                                shimmerDevice.startStreaming();
-                                shimmerStartStreamingTime = new Date();
                             }
                             else { Log.i(LOG_TAG, "ShimmerDevice returned is NULL!"); }
                             break;
@@ -479,6 +479,13 @@ public class MainActivity extends Activity {
                 }
                 //Get the Bluetooth mac address of the selected device:
                 String macAdd = data.getStringExtra(EXTRA_DEVICE_ADDRESS);
+                if(btManager == null){
+                    try {
+                        btManager = new ShimmerBluetoothManagerAndroid(this, mHandler);
+                    } catch (Exception e) {
+                        Log.e(LOG_TAG, "Couldn't create ShimmerBluetoothManagerAndroid. Error: " + e);
+                    }
+                }
                 btManager.connectShimmerThroughBTAddress(macAdd);   //Connect to the selected device
                 shimmerBtAdd = macAdd;
                 /*

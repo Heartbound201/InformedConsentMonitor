@@ -21,6 +21,16 @@ public class CustomJavaScriptInterface {
     }
 
     @JavascriptInterface
+    public void startStreaming(){
+        parentActivity.startStreaming(null);
+    }
+
+    @JavascriptInterface
+    public void stopStreaming(){
+        parentActivity.stopStreaming(null);
+    }
+
+    @JavascriptInterface
     public void trackWebSession(long timestamp, String url){
         Log.d("JavascriptInterface", "timestamp: " + timestamp + " url: " + url);
         lastSession = mDbHelper.insertWebSessionEntry(timestamp, url);

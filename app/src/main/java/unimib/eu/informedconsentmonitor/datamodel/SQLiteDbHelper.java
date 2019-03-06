@@ -140,7 +140,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         return newRowId;
     }
 
-    private void clearData(){
+    public void clearData(){
         this.getWritableDatabase().execSQL("delete from "+ SessionEntry.TABLE_NAME);
         this.getWritableDatabase().execSQL("delete from "+ ShimmerDataEntry.TABLE_NAME);
         this.getWritableDatabase().execSQL("delete from "+ JavascriptDataEntry.TABLE_NAME);
@@ -157,7 +157,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         {
             String csvFileName = new SimpleDateFormat("yyyyMMdd").format(new Date()) + "_websessions.csv";
             File file = new File(exportDir, csvFileName);
-
+            file.delete();
             file.createNewFile();
             CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
             SQLiteDatabase db = this.getReadableDatabase();
@@ -181,7 +181,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         {
             String csvFileName = new SimpleDateFormat("yyyyMMdd").format(new Date()) + "_javascriptdata.csv";
             File file = new File(exportDir, csvFileName);
-
+            file.delete();
             file.createNewFile();
             CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
             SQLiteDatabase db = this.getReadableDatabase();
@@ -206,7 +206,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         {
             String csvFileName = new SimpleDateFormat("yyyyMMdd").format(new Date()) + "_shimmerdata.csv";
             File file = new File(exportDir, csvFileName);
-
+            file.delete();
             file.createNewFile();
             CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
             SQLiteDatabase db = this.getReadableDatabase();
