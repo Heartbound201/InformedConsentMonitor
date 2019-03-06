@@ -102,7 +102,7 @@ function predictCurrentParagraph(){
 }
 
 function androidNativeInterfaceCall() {
-   Native.trackJavascriptData(new Date().getTime(), predictCurrentParagraph(), webgazer.getCurrentPrediction());
+   Native.trackJavascriptData(new Date().getTime(), predictCurrentParagraph(), JSON.stringify(webgazer.getCurrentPrediction()));
 }
 
 

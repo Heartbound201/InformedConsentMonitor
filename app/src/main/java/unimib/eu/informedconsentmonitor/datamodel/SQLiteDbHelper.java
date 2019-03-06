@@ -153,15 +153,20 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
             exportDir.mkdirs();
         }
 
+        Date date = new Date();
+        String fileDate = new SimpleDateFormat("yyyyMMdd").format(date);
+        String rowDate = new SimpleDateFormat("dd-MM-yyyy").format(date);
         // Exporting WebSession Table
         {
-            String csvFileName = new SimpleDateFormat("yyyyMMdd").format(new Date()) + "_websessions.csv";
+            String csvFileName = fileDate + "_websessions.csv";
             File file = new File(exportDir, csvFileName);
-
+            // we delete/overwrite any file with the same name
+            file.delete();
             file.createNewFile();
             CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
             SQLiteDatabase db = this.getReadableDatabase();
-            Cursor curCSV = db.rawQuery("SELECT * FROM " + SessionEntry.TABLE_NAME, null);
+            String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", SessionEntry.TABLE_NAME, SessionEntry.COLUMN_TIMESTAMP_IN, rowDate);
+            Cursor curCSV = db.rawQuery(query, null);
             csvWrite.writeNext(curCSV.getColumnNames());
             while (curCSV.moveToNext()) {
                 //Which column you want to export
@@ -179,13 +184,15 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         }
         // Exporting JavascriptData Table
         {
-            String csvFileName = new SimpleDateFormat("yyyyMMdd").format(new Date()) + "_javascriptdata.csv";
+            String csvFileName = fileDate + "_javascriptdata.csv";
             File file = new File(exportDir, csvFileName);
-
+            // we delete/overwrite any file with the same name
+            file.delete();
             file.createNewFile();
             CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
             SQLiteDatabase db = this.getReadableDatabase();
-            Cursor curCSV = db.rawQuery("SELECT * FROM " + JavascriptDataEntry.TABLE_NAME, null);
+            String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", JavascriptDataEntry.TABLE_NAME, JavascriptDataEntry.COLUMN_TIMESTAMP, rowDate);
+            Cursor curCSV = db.rawQuery(query, null);
             csvWrite.writeNext(curCSV.getColumnNames());
             while (curCSV.moveToNext()) {
                 //Which column you want to export
@@ -204,13 +211,15 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         }
         // Exporting ShimmerData Table
         {
-            String csvFileName = new SimpleDateFormat("yyyyMMdd").format(new Date()) + "_shimmerdata.csv";
+            String csvFileName = fileDate + "_shimmerdata.csv";
             File file = new File(exportDir, csvFileName);
-
+            // we delete/overwrite any file with the same name
+            file.delete();
             file.createNewFile();
             CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
             SQLiteDatabase db = this.getReadableDatabase();
-            Cursor curCSV = db.rawQuery("SELECT * FROM " + ShimmerDataEntry.TABLE_NAME, null);
+            String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", ShimmerDataEntry.TABLE_NAME, ShimmerDataEntry.COLUMN_TIMESTAMP, rowDate);
+            Cursor curCSV = db.rawQuery(query, null);
             csvWrite.writeNext(curCSV.getColumnNames());
             while (curCSV.moveToNext()) {
                 //Which column you want to export

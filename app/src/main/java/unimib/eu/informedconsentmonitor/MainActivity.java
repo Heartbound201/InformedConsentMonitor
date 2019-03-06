@@ -54,7 +54,6 @@ import com.shimmerresearch.driverUtilities.SensorDetails;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.Timestamp;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -495,7 +494,7 @@ public class MainActivity extends Activity {
     }
 
     public void exportCsv(View v){
-        String message = "tables are exported";
+        String message = "Tables exported successfully on the /storage/InformedConsent folder.";
         try {
             dbHelper.exportCsv();
         } catch (IOException e) {
