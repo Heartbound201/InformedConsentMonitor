@@ -140,7 +140,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         return newRowId;
     }
 
-    private void clearData(){
+    public void clearData(){
         this.getWritableDatabase().execSQL("delete from "+ SessionEntry.TABLE_NAME);
         this.getWritableDatabase().execSQL("delete from "+ ShimmerDataEntry.TABLE_NAME);
         this.getWritableDatabase().execSQL("delete from "+ JavascriptDataEntry.TABLE_NAME);

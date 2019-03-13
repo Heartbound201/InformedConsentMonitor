@@ -102,7 +102,7 @@ function predictCurrentParagraph(){
 }
 
 function androidNativeInterfaceCall() {
-   Native.trackJavascriptData(new Date().getTime(), predictCurrentParagraph(), JSON.stringify(webgazer.getCurrentPrediction()));
+   Native.trackJavascriptData(new Date().getTime(), predictCurrentParagraph(), JSON.stringify(getEyePrediction()));
 }
 
 
@@ -128,4 +128,15 @@ function loadWebgazerRegressionData(){
 
 function clearWebgazerRegrassionData(){
     webgazer.getRegression()[0].setData([]);
+}
+
+function getEyePrediction(){
+    var ret = {};
+    var pred = webgazer.getCurrentPrediction();
+    if(pred == null){
+        return ret;
+    }
+    ret['x'] = pred.x;
+    ret['y'] = pred.y;
+    return ret;
 }
