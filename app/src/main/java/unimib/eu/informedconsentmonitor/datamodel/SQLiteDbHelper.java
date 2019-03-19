@@ -165,7 +165,8 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
             file.createNewFile();
             CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
             SQLiteDatabase db = this.getReadableDatabase();
-            String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", SessionEntry.TABLE_NAME, SessionEntry.COLUMN_TIMESTAMP_IN, rowDate);
+            //String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", SessionEntry.TABLE_NAME, SessionEntry.COLUMN_TIMESTAMP_IN, rowDate);
+            String query = String.format("SELECT * FROM %s ;", SessionEntry.TABLE_NAME);
             Cursor curCSV = db.rawQuery(query, null);
             csvWrite.writeNext(curCSV.getColumnNames());
             while (curCSV.moveToNext()) {
@@ -191,7 +192,8 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
             file.createNewFile();
             CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
             SQLiteDatabase db = this.getReadableDatabase();
-            String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", JavascriptDataEntry.TABLE_NAME, JavascriptDataEntry.COLUMN_TIMESTAMP, rowDate);
+            //String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", JavascriptDataEntry.TABLE_NAME, JavascriptDataEntry.COLUMN_TIMESTAMP, rowDate);
+            String query = String.format("SELECT * FROM %s ;", JavascriptDataEntry.TABLE_NAME);
             Cursor curCSV = db.rawQuery(query, null);
             csvWrite.writeNext(curCSV.getColumnNames());
             while (curCSV.moveToNext()) {
@@ -218,7 +220,8 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
             file.createNewFile();
             CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
             SQLiteDatabase db = this.getReadableDatabase();
-            String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", ShimmerDataEntry.TABLE_NAME, ShimmerDataEntry.COLUMN_TIMESTAMP, rowDate);
+            //String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", ShimmerDataEntry.TABLE_NAME, ShimmerDataEntry.COLUMN_TIMESTAMP, rowDate);
+            String query = String.format("SELECT * FROM %s ;", ShimmerDataEntry.TABLE_NAME);
             Cursor curCSV = db.rawQuery(query, null);
             csvWrite.writeNext(curCSV.getColumnNames());
             while (curCSV.moveToNext()) {

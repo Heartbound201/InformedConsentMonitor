@@ -7,7 +7,6 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraDevice;
@@ -19,9 +18,16 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
+import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.util.Base64;
 import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
 import android.webkit.PermissionRequest;
 import android.webkit.SslErrorHandler;
@@ -30,17 +36,10 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.Button;
 import android.widget.TableLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ToggleButton;
 
-import com.androidplot.ui.SizeLayoutType;
-import com.androidplot.ui.SizeMetrics;
-import com.androidplot.xy.LineAndPointFormatter;
-import com.androidplot.xy.XYPlot;
-import com.androidplot.xy.XYStepMode;
 import com.shimmerresearch.android.Shimmer;
 import com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog;
 import com.shimmerresearch.android.manager.ShimmerBluetoothManagerAndroid;
@@ -50,52 +49,31 @@ import com.shimmerresearch.driver.Configuration;
 import com.shimmerresearch.driver.FormatCluster;
 import com.shimmerresearch.driver.ObjectCluster;
 import com.shimmerresearch.driver.ShimmerDevice;
-import com.shimmerresearch.driverUtilities.SensorDetails;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.text.DecimalFormat;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
 
-import pl.flex_it.androidplot.XYSeriesShimmer;
 import unimib.eu.informedconsentmonitor.datamodel.SQLiteDbHelper;
 import unimib.eu.informedconsentmonitor.utils.ConfigHelper;
 
-import static com.shimmerresearch.android.guiUtilities.PlotFragment.X_AXIS_LENGTH;
 import static com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog.EXTRA_DEVICE_ADDRESS;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
 
     private final static String LOG_TAG = "Shimmer";
 
-    protected Button connectBtn;
-    protected ToggleButton debugBtn;
     protected TableLayout statsTable;
     protected WebView webView;
-    protected XYPlot dynamicPlot;
+    protected DrawerLayout drawerLayout;
+    protected NavigationView navigationView;
+    protected Toolbar toolbar;
 
-    public static HashMap<String, LineAndPointFormatter> sensorMap = new HashMap<String, LineAndPointFormatter>() {{
-        put(Configuration.Shimmer3.ObjectClusterSensorName.TIMESTAMP,
-                new LineAndPointFormatter(Color.rgb(0, 0, 0), null, null));
-        put(Configuration.Shimmer3.ObjectClusterSensorName.GSR_RESISTANCE,
-                new LineAndPointFormatter(Color.rgb(0, 255, 0), null, null));
-        put(Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE,
-                new LineAndPointFormatter(Color.rgb(0, 0, 255), null, null));
-        put("PPG_A13",//Configuration.Shimmer3.ObjectClusterSensorName.INT_EXP_ADC_A13,
-                new LineAndPointFormatter(Color.rgb(255, 0, 0), null, null));
-    }};
-    public static HashMap<String, List<Number>> mPlotDataMap = new HashMap<String, List<Number>>(1);
-    public static HashMap<String, XYSeriesShimmer> mPlotSeriesMap = new HashMap<String, XYSeriesShimmer>(1);
-    String currentPlot = Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE;
     SQLiteDbHelper dbHelper;
     ShimmerBluetoothManagerAndroid btManager;
     ShimmerDevice shimmerDevice;
     String shimmerBtAdd;
-    Date shimmerStartStreamingTime;
 
     // configuration.properties
     boolean isDebug;
@@ -127,49 +105,54 @@ public class MainActivity extends Activity {
         webApp_BaseUrl = ConfigHelper.getConfigValue(this, "webapp_url");
 
         // Layout elements
-        connectBtn = findViewById(R.id.connect_btn);
         webView = findViewById(R.id.webview);
         statsTable = findViewById(R.id.debug_stats);
-        dynamicPlot = findViewById(R.id.dynamicPlot);
+        drawerLayout = findViewById(R.id.drawer_layout);
+        navigationView = findViewById(R.id.nav_view);
+        toolbar = findViewById(R.id.toolbar);
 
-        // Initialize plot
-        dynamicPlot.getGraphWidget().setDomainValueFormat(new DecimalFormat("0"));
-        dynamicPlot.setDomainStepMode(XYStepMode.SUBDIVIDE);
-        dynamicPlot.getLegendWidget().setSize(new SizeMetrics(0, SizeLayoutType.ABSOLUTE, 0, SizeLayoutType.ABSOLUTE));
+        // Open SQLite Db
+        dbHelper = new SQLiteDbHelper(getApplicationContext());
 
+        // Trying to connect to a shimmer device at start up
         try {
             btManager = new ShimmerBluetoothManagerAndroid(this, mHandler);
         } catch (Exception e) {
             Log.e(LOG_TAG, "Couldn't create ShimmerBluetoothManagerAndroid. Error: " + e);
         }
 
-        connectBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                connectDevice(null);
-            }
-        });
-
-        // We set the debug button to hide or show the statistics screen
-        debugBtn = findViewById(R.id.debug_btn);
-        debugBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if (((ToggleButton) v).isChecked())
-                    statsTable.setVisibility(View.VISIBLE);
-                else
-                    statsTable.setVisibility(View.GONE);
-            }
-        });
-
-        webView.clearCache(false);
-        if(isDebug) {
+        if (isDebug) {
             // Added only to be able to debug the application through chrome://inspect
             WebView.setWebContentsDebuggingEnabled(true);
-            debugBtn.setVisibility(View.VISIBLE);
+            statsTable.setVisibility(View.VISIBLE);
         }
 
-        // Open SQLite Db
-        dbHelper = new SQLiteDbHelper(getApplicationContext());
+        // Initialize toolbar
+        setSupportActionBar(toolbar);
+        ActionBar actionbar = getSupportActionBar();
+        actionbar.setDisplayHomeAsUpEnabled(true);
+        actionbar.setHomeAsUpIndicator(R.drawable.ic_menu);
+
+        // Initialize navigation menu handler
+        navigationView.setNavigationItemSelectedListener(
+                new NavigationView.OnNavigationItemSelectedListener() {
+                    @Override
+                    public boolean onNavigationItemSelected(MenuItem menuItem) {
+                        // Handle item selection
+                        menuItem.setChecked(false);
+                        switch (menuItem.getItemId()) {
+                            case R.id.nav_connect_shimmer:
+                                connectDevice(null);
+                                return true;
+                            case R.id.nav_export_database:
+                                exportCsv(null);
+                                return true;
+                            default:
+                                return true;
+                        }
+                    }
+                });
+
 
         // We inject the needed javascript on every loaded page
         webView.setWebViewClient(new WebViewClient() {
@@ -182,7 +165,6 @@ public class MainActivity extends Activity {
                     injectScriptFile(webView, "js/inject.js");
                     if(shimmerDevice != null){
                         shimmerDevice.startStreaming();
-                        shimmerStartStreamingTime = new Date();
                     }
                 }
                 else if(url.contains(webApp_BaseUrl + "/response.php")) {
@@ -212,9 +194,13 @@ public class MainActivity extends Activity {
         });
 
         WebSettings webSettings = webView.getSettings();
+        webSettings.setLoadWithOverviewMode(true);
+        webSettings.setUseWideViewPort(true);
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
+        webView.setInitialScale(1);
+        webView.clearCache(false);
         webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "Native");
         webView.loadUrl(webApp_BaseUrl + "/login.php");
         Log.d("DEBUG", "webapp url is " + webApp_BaseUrl + "/login.php");
@@ -233,6 +219,16 @@ public class MainActivity extends Activity {
             btManager.disconnectAllDevices();
         }
         dbHelper.clearData();
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case android.R.id.home:
+                drawerLayout.openDrawer(GravityCompat.START);
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private void injectScriptFile(WebView view, String scriptFile) {
@@ -367,18 +363,12 @@ public class MainActivity extends Activity {
                         //Print data to Logcat
                         ObjectCluster objectCluster = (ObjectCluster) msg.obj;
 
-                        double timestamp = 0;
                         double gsrConductance = 0;
                         double gsrResistance = 0;
                         double ppg = 0;
 
-                        Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.TIMESTAMP);
+                        Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE);
                         FormatCluster formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
-                        if (formatCluster != null) {
-                            timestamp = formatCluster.mData;
-                        }
-                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE);
-                        formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
                         if (formatCluster != null) {
                             gsrConductance = formatCluster.mData;
                         }
@@ -394,13 +384,11 @@ public class MainActivity extends Activity {
                         }
 
                         Log.d(LOG_TAG, "DATA_PACKET: " +
-                                "\n Timestamp: " + timestamp +
                                 "\n GSR Conductance: " + gsrConductance +
                                 "\n GSR Resistance: " + gsrResistance +
                                 "\n PPG: " + ppg);
-                        dbHelper.insertShimmerDataEntry(lastSession, shimmerStartStreamingTime.getTime() + (long)timestamp, gsrConductance, gsrResistance, ppg);
+                        dbHelper.insertShimmerDataEntry(lastSession, new Date().getTime(), gsrConductance, gsrResistance, ppg);
 
-                        //plot(objectCluster);
                     }
                     break;
                 case Shimmer.MESSAGE_TOAST:
@@ -521,61 +509,4 @@ public class MainActivity extends Activity {
         });
     }
 
-    public void plotGSRResistance(View v){
-        currentPlot = Configuration.Shimmer3.ObjectClusterSensorName.GSR_RESISTANCE;
-        dynamicPlot.clear();
-    }
-    public void plotGSRConductance(View v){
-        currentPlot = Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE;
-        dynamicPlot.clear();
-    }
-    public void plotPPG(View v){
-        //currentPlot = Configuration.Shimmer3.ObjectClusterSensorName.INT_EXP_ADC_A13;
-        currentPlot = "PPG_A13";
-        dynamicPlot.clear();
-    }
-    private void plot(ObjectCluster objectCluster){
-        for (String sensor : sensorMap.keySet()) {
-            if(currentPlot != sensor){
-                // is not the sensor we want to plot
-                continue;
-            }
-            //Retrieve all possible formats for the current sensor device:
-            Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(sensor);
-            FormatCluster formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
-            if (formatCluster != null) {
-                double data = formatCluster.mData;
-                Log.i(LOG_TAG, sensor + ": " + data);
-            }
-            else{
-                Log.i(LOG_TAG, "No data for sensor " + sensor);
-                continue;
-            }
-
-            // Plot streamed data
-            List<Number> data;
-            if (mPlotDataMap.get(sensor)!=null){
-                data = mPlotDataMap.get(sensor);
-            } else {
-                data = new ArrayList<Number>();
-            }
-            if (data.size()>X_AXIS_LENGTH){
-                //data.clear();
-                data.remove(0);
-            }
-            data.add(formatCluster.mData);
-            mPlotDataMap.put(sensor, data);
-
-            //next check if the series exist
-            if (mPlotSeriesMap.get(sensor)!=null){
-                //if the series exist get the line format
-                mPlotSeriesMap.get(sensor).updateData(data);
-            } else {
-                XYSeriesShimmer series = new XYSeriesShimmer(data, 0, sensor);
-                mPlotSeriesMap.put(sensor, series);
-                dynamicPlot.addSeries(mPlotSeriesMap.get(sensor), sensorMap.get(sensor));
-            }
-        }
-        dynamicPlot.redraw();
-    }
 }

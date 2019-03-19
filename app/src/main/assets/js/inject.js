@@ -28,11 +28,6 @@ function startWebgazer() {
         .showFaceFeedbackBox(false);
 }
 
-function Paragraph(text, visibility, bbox){
-    this.text = text;
-    this.visibility = visibility;
-    this.boundingBox = bbox;
-}
 // Paragraphs visible in viewport and relative visibility percentage
 var visible_paragraphs = {};
 // Visible paragraphs bounding boxes
@@ -64,13 +59,19 @@ function calculateVisibilityForParagraph(par) {
 }
 
 function calculateAndDisplayForAllParagraphs() {
-    $('p').each(function () {
+    var paragraphs = [];
+    $('p.testo').each(function () {
         var par = $(this);
-        if(par.attr('id') != null){
-            visible_paragraphs[par.attr('id')] = calculateVisibilityForParagraph(par);
-            paragraphs_bboxes[par.attr('id')] = par[0].getBoundingClientRect();
-        }
+        var paragraph = {};
+        visible_paragraphs[par.attr('id')] = calculateVisibilityForParagraph(par);
+        paragraphs_bboxes[par.attr('id')] = par[0].getBoundingClientRect();
+        paragraph['id'] = par.attr('id');
+        paragraph['text'] = par.text();
+        paragraph['visibility'] = calculateVisibilityForParagraph(par);
+        paragraph['boundingbox'] = par[0].getBoundingClientRect();
+        paragraphs.push(paragraph);
     });
+    return paragraphs;
 }
 
 function predictCurrentParagraph(){
@@ -102,7 +103,7 @@ function predictCurrentParagraph(){
 }
 
 function androidNativeInterfaceCall() {
-   Native.trackJavascriptData(new Date().getTime(), predictCurrentParagraph(), JSON.stringify(getEyePrediction()));
+   Native.trackJavascriptData(new Date().getTime(), JSON.stringify(calculateAndDisplayForAllParagraphs()), JSON.stringify(getEyePrediction()));
 }
 
 
@@ -121,13 +122,10 @@ function exportWebgazerRegressionData(){
 }
 
 function loadWebgazerRegressionData(){
-    clearWebgazerRegrassionData();
-    var data = Native.loadWebgazerData();
-    webgazer.getRegression()[0].setData(JSON.parse(data));
-}
-
-function clearWebgazerRegrassionData(){
-    webgazer.getRegression()[0].setData([]);
+    var data = JSON.parse(Native.loadWebgazerData());
+    for (var i = 0; i < data.length; i++) {
+        webgazer.getRegression()[0].addData(data[i].eyes, data[i].screenPos, data[i].type);
+    }
 }
 
 function getEyePrediction(){

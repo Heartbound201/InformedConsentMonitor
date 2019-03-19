@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">InformedConsentMonitor</string>
+    <string name="nav_header">Menu</string>
+    <string name="connect_shimmer">Connect Shimmer device</string>
+    <string name="export_database">Export data to csv</string>
 </resources>
