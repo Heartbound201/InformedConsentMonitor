@@ -114,7 +114,7 @@ $(document).scroll(function () {
 trackSession();
 startWebgazer();
 calculateAndDisplayForAllParagraphs();
-setInterval(androidNativeInterfaceCall, 1000);
+setInterval(androidNativeInterfaceCall, 500);
 
 function exportWebgazerRegressionData(){
     var data = JSON.stringify(webgazer.getRegression()[0].getData());

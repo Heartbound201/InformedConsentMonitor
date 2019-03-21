@@ -140,7 +140,11 @@ public class MainActivity extends AppCompatActivity {
                     public boolean onNavigationItemSelected(MenuItem menuItem) {
                         // Handle item selection
                         menuItem.setChecked(false);
+                        drawerLayout.closeDrawers();
                         switch (menuItem.getItemId()) {
+                            case R.id.nav_home:
+                                if(webView != null) webView.loadUrl(webApp_BaseUrl + "/login.php");
+                                return true;
                             case R.id.nav_connect_shimmer:
                                 connectDevice(null);
                                 return true;

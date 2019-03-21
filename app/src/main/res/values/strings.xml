@@ -3,4 +3,5 @@
     <string name="nav_header">Menu</string>
     <string name="connect_shimmer">Connect Shimmer device</string>
     <string name="export_database">Export data to csv</string>
+    <string name="home">Home</string>
 </resources>

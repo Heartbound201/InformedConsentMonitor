@@ -2,13 +2,16 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
     <group android:checkableBehavior="single">
         <item
+            android:id="@+id/nav_home"
+            android:icon="@drawable/ic_menu_home"
+            android:title="@string/home" />
+        <item
             android:id="@+id/nav_connect_shimmer"
-            android:icon="@drawable/ic_menu_connect_shimmer"
+            android:icon="@drawable/ic_menu_bluetooth_connect"
             android:title="@string/connect_shimmer" />
         <item
             android:id="@+id/nav_export_database"
-            android:icon="@drawable/ic_menu_export_database"
+            android:icon="@drawable/ic_menu_export"
             android:title="@string/export_database" />
-
     </group>
 </menu>
