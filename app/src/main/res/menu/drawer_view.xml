@@ -10,6 +10,10 @@
             android:icon="@drawable/ic_menu_bluetooth_connect"
             android:title="@string/connect_shimmer" />
         <item
+            android:id="@+id/nav_calibrate"
+            android:icon="@drawable/ic_menu_calibrate"
+            android:title="@string/calibrate" />
+        <item
             android:id="@+id/nav_export_database"
             android:icon="@drawable/ic_menu_export"
             android:title="@string/export_database" />

@@ -1,19 +1,9 @@
 package unimib.eu.informedconsentmonitor;
 
-import android.os.Environment;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.widget.TextView;
-
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
 
 import unimib.eu.informedconsentmonitor.datamodel.SQLiteDbHelper;
 
@@ -61,49 +51,6 @@ public class CustomJavaScriptInterface {
         parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_scroll), paragraph);
         parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_webgazer), webgazer);
         mDbHelper.insertJavascriptDataEntry(lastSession, timestamp, paragraph, webgazer);
-    }
-
-    @JavascriptInterface
-    public void saveWebgazerData(JSONObject data){
-        BufferedWriter writer = null;
-        try {
-            File file = new File(Environment.getExternalStorageDirectory() + STORAGE_FOLDER + "webgazer_regression_data.txt");
-
-            writer = new BufferedWriter(new FileWriter(file));
-            writer.write(data.toString());
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                // Close the writer regardless of what happens...
-                writer.close();
-            } catch (IOException e) {
-            }
-        }
-    }
-
-    @JavascriptInterface
-    public String loadWebgazerData(){
-        String data = "{}";
-        BufferedReader reader = null;
-        try {
-            reader = new BufferedReader(new FileReader(Environment.getExternalStorageDirectory() + STORAGE_FOLDER + "webgazer_regression_data.txt"));
-
-            data = "";
-            String sCurrentLine;
-            while ((sCurrentLine = reader.readLine()) != null) {
-                data += sCurrentLine;
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                reader.close();
-            } catch (IOException e) {
-            }
-
-        }
-        return data;
     }
 
 }

@@ -14,6 +14,7 @@ public class DatabaseContract {
         public static final String COLUMN_TIMESTAMP_IN = "timestamp_in";
         public static final String COLUMN_TIMESTAMP_OUT = "timestamp_out";
         public static final String COLUMN_PAGE_URL = "url";
+        public static final String COLUMN_PATIENT = "patient";
     }
 
     public static class ShimmerDataEntry implements BaseColumns {
@@ -23,6 +24,7 @@ public class DatabaseContract {
         public static final String COLUMN_GSR_CONDUCTANCE = "gsr_conductance";
         public static final String COLUMN_GSR_RESISTANCE = "gsr_resistance";
         public static final String COLUMN_PPG_A13 = "ppg";
+        public static final String COLUMN_SKIN_TEMPERATURE = "skin_temperature";
     }
 
     public static class JavascriptDataEntry implements BaseColumns {

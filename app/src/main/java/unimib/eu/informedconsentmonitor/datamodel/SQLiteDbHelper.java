@@ -25,7 +25,7 @@ import unimib.eu.informedconsentmonitor.datamodel.DatabaseContract.ShimmerDataEn
 public class SQLiteDbHelper extends SQLiteOpenHelper {
     public static final String LOG_TAG = "SQLite";
     // If you change the database schema, you must increment the database version.
-    public static final int DATABASE_VERSION = 1;
+    public static final int DATABASE_VERSION = 3;
     public static final String DATABASE_NAME = "InformedConsentMonitor.db";
     private final String STORAGE_FOLDER = "/InformedConsent/";
 
@@ -34,7 +34,8 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
                     SessionEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
                     SessionEntry.COLUMN_TIMESTAMP_IN + " TEXT," +
                     SessionEntry.COLUMN_TIMESTAMP_OUT + " TEXT," +
-                    SessionEntry.COLUMN_PAGE_URL + " TEXT);";
+                    SessionEntry.COLUMN_PAGE_URL + " TEXT," +
+                    SessionEntry.COLUMN_PATIENT + " TEXT);";
     private static final String SQL_CREATE_SHIMMER_ENTRY =
             "CREATE TABLE " + ShimmerDataEntry.TABLE_NAME + " (" +
                     ShimmerDataEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -42,7 +43,8 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
                     ShimmerDataEntry.COLUMN_TIMESTAMP + " TEXT," +
                     ShimmerDataEntry.COLUMN_GSR_CONDUCTANCE + " REAL," +
                     ShimmerDataEntry.COLUMN_GSR_RESISTANCE + " REAL," +
-                    ShimmerDataEntry.COLUMN_PPG_A13 + " REAL);";
+                    ShimmerDataEntry.COLUMN_PPG_A13 + " REAL," +
+                    ShimmerDataEntry.COLUMN_SKIN_TEMPERATURE + " REAL);";
     private static final String SQL_CREATE_JAVASCRIPT_ENTRY =
             "CREATE TABLE " + JavascriptDataEntry.TABLE_NAME + " (" +
                     JavascriptDataEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -51,8 +53,12 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
                     JavascriptDataEntry.COLUMN_PARAGRAPHS + " BLOB," +
                     JavascriptDataEntry.COLUMN_WEBGAZER + " BLOB);";
 
-    private static final String SQL_DELETE_ENTRIES =
+    private static final String SQL_DELETE_SESSION_ENTRY =
             "DROP TABLE IF EXISTS " + SessionEntry.TABLE_NAME;
+    private static final String SQL_DELETE_SHIMMER_ENTRY =
+            "DROP TABLE IF EXISTS " + ShimmerDataEntry.TABLE_NAME;
+    private static final String SQL_DELETE_JAVASCRIPT_ENTRY =
+            "DROP TABLE IF EXISTS " + JavascriptDataEntry.TABLE_NAME;
 
     public SQLiteDbHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -66,7 +72,9 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         // This database is only a cache for online data, so its upgrade policy is
         // to simply to discard the data and start over
-        db.execSQL(SQL_DELETE_ENTRIES);
+        db.execSQL(SQL_DELETE_SESSION_ENTRY);
+        db.execSQL(SQL_DELETE_SHIMMER_ENTRY);
+        db.execSQL(SQL_DELETE_JAVASCRIPT_ENTRY);
         onCreate(db);
     }
     public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
@@ -87,7 +95,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         return newRowId;
     }
 
-    public long insertWebSessionEntry(long timestamp, String url){
+    public long insertWebSessionEntry(long timestamp, String url){ // TODO add patient data
         // Gets the data repository in write mode
         SQLiteDatabase db = this.getWritableDatabase();
 
@@ -103,7 +111,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
     }
 
     public long insertShimmerDataEntry(long session, long timestamp, double gsrConductance,
-                                       double gsrResistance, double ppg){
+                                       double gsrResistance, double ppg, double skinTemperature){
         // Gets the data repository in write mode
         SQLiteDatabase db = this.getWritableDatabase();
 
@@ -115,6 +123,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         values.put(ShimmerDataEntry.COLUMN_GSR_CONDUCTANCE, gsrConductance);
         values.put(ShimmerDataEntry.COLUMN_GSR_RESISTANCE, gsrResistance);
         values.put(ShimmerDataEntry.COLUMN_PPG_A13, ppg);
+        values.put(ShimmerDataEntry.COLUMN_SKIN_TEMPERATURE, skinTemperature);
 
         // Insert the new row, returning the primary key value of the new row
         long newRowId = db.insert(ShimmerDataEntry.TABLE_NAME, null, values);
@@ -155,27 +164,25 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
 
         Date date = new Date();
         String fileDate = new SimpleDateFormat("yyyyMMdd").format(date);
-        String rowDate = new SimpleDateFormat("dd-MM-yyyy").format(date);
         // Exporting WebSession Table
         {
             String csvFileName = fileDate + "_websessions.csv";
             File file = new File(exportDir, csvFileName);
-            // we delete/overwrite any file with the same name
-            file.delete();
-            file.createNewFile();
-            CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
+            boolean isFileNew;
+            isFileNew = file.createNewFile();
+            CSVWriter csvWrite = new CSVWriter(new FileWriter(file, true));
             SQLiteDatabase db = this.getReadableDatabase();
-            //String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", SessionEntry.TABLE_NAME, SessionEntry.COLUMN_TIMESTAMP_IN, rowDate);
             String query = String.format("SELECT * FROM %s ;", SessionEntry.TABLE_NAME);
             Cursor curCSV = db.rawQuery(query, null);
-            csvWrite.writeNext(curCSV.getColumnNames());
+            if(isFileNew) csvWrite.writeNext(curCSV.getColumnNames());
             while (curCSV.moveToNext()) {
                 //Which column you want to export
                 String arrStr[] = {
                         curCSV.getString(0),
                         curCSV.getString(1),
                         curCSV.getString(2),
-                        curCSV.getString(3)};
+                        curCSV.getString(3),
+                        curCSV.getString(4)};
                 csvWrite.writeNext(arrStr);
             }
             csvWrite.close();
@@ -187,15 +194,13 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         {
             String csvFileName = fileDate + "_javascriptdata.csv";
             File file = new File(exportDir, csvFileName);
-            // we delete/overwrite any file with the same name
-            file.delete();
-            file.createNewFile();
-            CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
+            boolean isFileNew;
+            isFileNew = file.createNewFile();
+            CSVWriter csvWrite = new CSVWriter(new FileWriter(file, true));
             SQLiteDatabase db = this.getReadableDatabase();
-            //String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", JavascriptDataEntry.TABLE_NAME, JavascriptDataEntry.COLUMN_TIMESTAMP, rowDate);
             String query = String.format("SELECT * FROM %s ;", JavascriptDataEntry.TABLE_NAME);
             Cursor curCSV = db.rawQuery(query, null);
-            csvWrite.writeNext(curCSV.getColumnNames());
+            if(isFileNew) csvWrite.writeNext(curCSV.getColumnNames());
             while (curCSV.moveToNext()) {
                 //Which column you want to export
                 String arrStr[] = {
@@ -215,15 +220,13 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         {
             String csvFileName = fileDate + "_shimmerdata.csv";
             File file = new File(exportDir, csvFileName);
-            // we delete/overwrite any file with the same name
-            file.delete();
-            file.createNewFile();
-            CSVWriter csvWrite = new CSVWriter(new FileWriter(file));
+            boolean isFileNew;
+            isFileNew = file.createNewFile();
+            CSVWriter csvWrite = new CSVWriter(new FileWriter(file, true));
             SQLiteDatabase db = this.getReadableDatabase();
-            //String query = String.format("SELECT * FROM %s WHERE %s LIKE '%s%%';", ShimmerDataEntry.TABLE_NAME, ShimmerDataEntry.COLUMN_TIMESTAMP, rowDate);
             String query = String.format("SELECT * FROM %s ;", ShimmerDataEntry.TABLE_NAME);
             Cursor curCSV = db.rawQuery(query, null);
-            csvWrite.writeNext(curCSV.getColumnNames());
+            if(isFileNew) csvWrite.writeNext(curCSV.getColumnNames());
             while (curCSV.moveToNext()) {
                 //Which column you want to export
                 String arrStr[] = {
@@ -232,13 +235,17 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
                         curCSV.getString(2),
                         curCSV.getString(3),
                         curCSV.getString(4),
-                        curCSV.getString(5)};
+                        curCSV.getString(5),
+                        curCSV.getString(6)};
                 csvWrite.writeNext(arrStr);
             }
             csvWrite.close();
             curCSV.close();
             String message = ShimmerDataEntry.TABLE_NAME + " table exported as .csv at " + file.getAbsolutePath();
             Log.d(LOG_TAG, message);
+
+            // Clear database
+            clearData();
         }
 
     }

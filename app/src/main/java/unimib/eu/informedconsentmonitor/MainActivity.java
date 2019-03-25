@@ -124,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
         if (isDebug) {
             // Added only to be able to debug the application through chrome://inspect
             WebView.setWebContentsDebuggingEnabled(true);
-            statsTable.setVisibility(View.VISIBLE);
+            //statsTable.setVisibility(View.VISIBLE);
         }
 
         // Initialize toolbar
@@ -144,6 +144,9 @@ public class MainActivity extends AppCompatActivity {
                         switch (menuItem.getItemId()) {
                             case R.id.nav_home:
                                 if(webView != null) webView.loadUrl(webApp_BaseUrl + "/login.php");
+                                return true;
+                            case R.id.nav_calibrate:
+                                if(webView != null) webView.loadUrl(webApp_BaseUrl + "/calibration.php");
                                 return true;
                             case R.id.nav_connect_shimmer:
                                 connectDevice(null);
@@ -165,11 +168,11 @@ public class MainActivity extends AppCompatActivity {
                 super.onPageFinished(webView, url);
 
                 if(url.contains(webApp_BaseUrl + "/builder.php")) {
-                    injectScriptFile(webView, "js/webgazer.js");
-                    injectScriptFile(webView, "js/inject.js");
-                    if(shimmerDevice != null){
-                        shimmerDevice.startStreaming();
-                    }
+                    //injectScriptFile(webView, "js/webgazer.js");
+                    //injectScriptFile(webView, "js/inject.js");
+                    //if(shimmerDevice != null){
+                    //    shimmerDevice.startStreaming();
+                    //}
                 }
                 else if(url.contains(webApp_BaseUrl + "/response.php")) {
                     dbHelper.updateWebSessionEntry(lastSession, System.currentTimeMillis());
@@ -222,7 +225,7 @@ public class MainActivity extends AppCompatActivity {
             }
             btManager.disconnectAllDevices();
         }
-        dbHelper.clearData();
+        //dbHelper.clearData();
     }
 
     @Override
@@ -370,6 +373,7 @@ public class MainActivity extends AppCompatActivity {
                         double gsrConductance = 0;
                         double gsrResistance = 0;
                         double ppg = 0;
+                        double temperature = 0;
 
                         Collection<FormatCluster> allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.GSR_CONDUCTANCE);
                         FormatCluster formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
@@ -386,12 +390,18 @@ public class MainActivity extends AppCompatActivity {
                         if (formatCluster != null) {
                             ppg = formatCluster.mData;
                         }
+                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.SKIN_TEMPERATURE_PROBE);
+                        formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
+                        if (formatCluster != null) {
+                            temperature = formatCluster.mData;
+                        }
 
                         Log.d(LOG_TAG, "DATA_PACKET: " +
-                                "\n GSR Conductance: " + gsrConductance +
-                                "\n GSR Resistance: " + gsrResistance +
-                                "\n PPG: " + ppg);
-                        dbHelper.insertShimmerDataEntry(lastSession, new Date().getTime(), gsrConductance, gsrResistance, ppg);
+                                "\n GSR CONDUCTANCE: " + gsrConductance +
+                                "\n GSR RESISTANCE: " + gsrResistance +
+                                "\n PPG: " + ppg +
+                                "\n SKIN TEMPERATURE: " + temperature);
+                        dbHelper.insertShimmerDataEntry(lastSession, new Date().getTime(), gsrConductance, gsrResistance, ppg, temperature);
 
                     }
                     break;
