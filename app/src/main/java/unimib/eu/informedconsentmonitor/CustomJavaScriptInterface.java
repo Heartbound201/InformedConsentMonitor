@@ -22,6 +22,9 @@ public class CustomJavaScriptInterface {
     }
 
     @JavascriptInterface
+    public boolean isLoadedFromMobileApp(){ return true; }
+
+    @JavascriptInterface
     public void startStreaming(){
         parentActivity.startStreaming(null);
     }
@@ -46,10 +49,7 @@ public class CustomJavaScriptInterface {
 
     @JavascriptInterface
     public void trackJavascriptData(long timestamp, String paragraph, String webgazer){
-        Log.d("JavascriptInterface", "timestamp: " + timestamp + " paragraph: " + paragraph + " webgazer: " + webgazer);
-        parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_time), Long.toString(timestamp));
-        parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_scroll), paragraph);
-        parentActivity.updateDebugText((TextView) parentActivity.findViewById(R.id.debug_webgazer), webgazer);
+        //Log.d("JavascriptInterface", "timestamp: " + timestamp + " paragraph: " + paragraph + " webgazer: " + webgazer);
         mDbHelper.insertJavascriptDataEntry(lastSession, timestamp, paragraph, webgazer);
     }
 

@@ -36,7 +36,6 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.TableLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -49,6 +48,7 @@ import com.shimmerresearch.driver.Configuration;
 import com.shimmerresearch.driver.FormatCluster;
 import com.shimmerresearch.driver.ObjectCluster;
 import com.shimmerresearch.driver.ShimmerDevice;
+import com.shimmerresearch.driverUtilities.SensorDetails;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -64,7 +64,6 @@ public class MainActivity extends AppCompatActivity {
 
     private final static String LOG_TAG = "Shimmer";
 
-    protected TableLayout statsTable;
     protected WebView webView;
     protected DrawerLayout drawerLayout;
     protected NavigationView navigationView;
@@ -94,22 +93,22 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Request permissions
         ActivityCompat.requestPermissions(this, new String[]{
                 Manifest.permission.CAMERA,
                 Manifest.permission.BLUETOOTH,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE
         }, 0);
 
-        // Read configuration properties
-        isDebug = "true".equalsIgnoreCase(ConfigHelper.getConfigValue(this, "debug"));
-        webApp_BaseUrl = ConfigHelper.getConfigValue(this, "webapp_url");
-
         // Layout elements
         webView = findViewById(R.id.webview);
-        statsTable = findViewById(R.id.debug_stats);
         drawerLayout = findViewById(R.id.drawer_layout);
         navigationView = findViewById(R.id.nav_view);
         toolbar = findViewById(R.id.toolbar);
+
+        // Read configuration properties
+        isDebug = "true".equalsIgnoreCase(ConfigHelper.getConfigValue(this, "debug"));
+        webApp_BaseUrl = ConfigHelper.getConfigValue(this, "webapp_url");
 
         // Open SQLite Db
         dbHelper = new SQLiteDbHelper(getApplicationContext());
@@ -124,7 +123,6 @@ public class MainActivity extends AppCompatActivity {
         if (isDebug) {
             // Added only to be able to debug the application through chrome://inspect
             WebView.setWebContentsDebuggingEnabled(true);
-            //statsTable.setVisibility(View.VISIBLE);
         }
 
         // Initialize toolbar
@@ -166,17 +164,18 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView webView, String url) {
                 super.onPageFinished(webView, url);
-
+                /*
                 if(url.contains(webApp_BaseUrl + "/builder.php")) {
-                    //injectScriptFile(webView, "js/webgazer.js");
-                    //injectScriptFile(webView, "js/inject.js");
-                    //if(shimmerDevice != null){
-                    //    shimmerDevice.startStreaming();
-                    //}
+                    injectScriptFile(webView, "js/webgazer.js");
+                    injectScriptFile(webView, "js/inject.js");
+                    if(shimmerDevice != null){
+                      shimmerDevice.startStreaming();
+                    }
                 }
                 else if(url.contains(webApp_BaseUrl + "/response.php")) {
                     dbHelper.updateWebSessionEntry(lastSession, System.currentTimeMillis());
                 }
+                */
             }
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
@@ -208,7 +207,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setMediaPlaybackRequiresUserGesture(false);
         webView.setInitialScale(1);
         webView.clearCache(false);
-        webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "Native");
+        webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "AndroidBridge");
         webView.loadUrl(webApp_BaseUrl + "/login.php");
         Log.d("DEBUG", "webapp url is " + webApp_BaseUrl + "/login.php");
         // IMPORTANT !!!
@@ -366,7 +365,6 @@ public class MainActivity extends AppCompatActivity {
             switch (msg.what) {
                 case ShimmerBluetooth.MSG_IDENTIFIER_DATA_PACKET:
                     if ((msg.obj instanceof ObjectCluster)) {
-
                         //Print data to Logcat
                         ObjectCluster objectCluster = (ObjectCluster) msg.obj;
 
@@ -390,7 +388,7 @@ public class MainActivity extends AppCompatActivity {
                         if (formatCluster != null) {
                             ppg = formatCluster.mData;
                         }
-                        allFormats = objectCluster.getCollectionOfFormatClusters(Configuration.Shimmer3.ObjectClusterSensorName.SKIN_TEMPERATURE_PROBE);
+                        allFormats = objectCluster.getCollectionOfFormatClusters("Temperature_BMP280");
                         formatCluster = ((FormatCluster) ObjectCluster.returnFormatCluster(allFormats, "CAL"));
                         if (formatCluster != null) {
                             temperature = formatCluster.mData;
@@ -400,7 +398,7 @@ public class MainActivity extends AppCompatActivity {
                                 "\n GSR CONDUCTANCE: " + gsrConductance +
                                 "\n GSR RESISTANCE: " + gsrResistance +
                                 "\n PPG: " + ppg +
-                                "\n SKIN TEMPERATURE: " + temperature);
+                                "\n TEMPERATURE: " + temperature);
                         dbHelper.insertShimmerDataEntry(lastSession, new Date().getTime(), gsrConductance, gsrResistance, ppg, temperature);
 
                     }
@@ -427,32 +425,40 @@ public class MainActivity extends AppCompatActivity {
                     switch (state) {
                         case CONNECTED:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now CONNECTED");
-                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "CONNECTED");
+                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "CONNECTED");
                             shimmerDevice = btManager.getShimmerDeviceBtConnectedFromMac(shimmerBtAdd);
                             if(shimmerDevice != null) {
                                 Log.i(LOG_TAG, "Got the ShimmerDevice!");
+
+                                /*
+                                for (SensorDetails sensorsDetsils : shimmerDevice.getListOfEnabledSensors()) {
+                                    for (String sensors : sensorsDetsils.mSensorDetailsRef.mListOfChannelsRef) {
+                                        Log.d("Enabled Sensors", sensors);
+                                    }
+                                }
+                                */
                             }
                             else { Log.i(LOG_TAG, "ShimmerDevice returned is NULL!"); }
                             break;
                         case CONNECTING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is CONNECTING");
-                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "CONNECTING");
+                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "CONNECTING");
                             break;
                         case STREAMING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now STREAMING");
-                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "STREAMING");
+                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "STREAMING");
                             break;
                         case STREAMING_AND_SDLOGGING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now STREAMING AND LOGGING");
-                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "STREAMING AND LOGGING");
+                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "STREAMING AND LOGGING");
                             break;
                         case SDLOGGING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now SDLOGGING");
-                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "SDLOGGING");
+                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "SDLOGGING");
                             break;
                         case DISCONNECTED:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] has been DISCONNECTED");
-                            updateDebugText((TextView) findViewById(R.id.debug_shimmer), "DISCONNECTED");
+                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "DISCONNECTED");
                             break;
                     }
                     break;
