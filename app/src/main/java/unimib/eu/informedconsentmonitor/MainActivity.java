@@ -78,8 +78,8 @@ public class MainActivity extends AppCompatActivity {
     boolean isDebug;
     String webApp_BaseUrl;
 
-    // database. table WebSession. column id
-    public long lastSession;
+    public long lastSession = 0L; // database. table WebSession. column id
+    public boolean isBaseline = false; // data streamed is used for baseline calculation
 
     @Override
     protected void onStart() {
@@ -205,7 +205,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
-        webView.setInitialScale(1);
+        //webView.setInitialScale(1);
         webView.clearCache(false);
         webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "AndroidBridge");
         webView.loadUrl(webApp_BaseUrl + "/login.php");

@@ -35,6 +35,18 @@ public class CustomJavaScriptInterface {
     }
 
     @JavascriptInterface
+    public void startStreamingBaseline(){
+        parentActivity.isBaseline = true;
+        parentActivity.startStreaming(null);
+    }
+
+    @JavascriptInterface
+    public void stopStreamingBaseline(){
+        parentActivity.isBaseline = false;
+        parentActivity.stopStreaming(null);
+    }
+
+    @JavascriptInterface
     public void trackWebSession(long timestamp, String url){
         Log.d("JavascriptInterface", "timestamp: " + timestamp + " url: " + url);
         lastSession = mDbHelper.insertWebSessionEntry(timestamp, url);
