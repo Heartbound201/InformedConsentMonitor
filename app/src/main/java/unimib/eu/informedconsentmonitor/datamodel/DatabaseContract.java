@@ -15,12 +15,14 @@ public class DatabaseContract {
         public static final String COLUMN_TIMESTAMP_OUT = "timestamp_out";
         public static final String COLUMN_PAGE_URL = "url";
         public static final String COLUMN_PATIENT = "patient";
+        public static final String COLUMN_TIME_ON_PARAGRAPHS = "time_on_paragraphs_normalized";
     }
 
     public static class ShimmerDataEntry implements BaseColumns {
         public static final String TABLE_NAME = "ShimmerData";
         public static final String COLUMN_ID_SESSION = "id_session";
         public static final String COLUMN_TIMESTAMP = "timestamp";
+        public static final String COLUMN_BASELINE = "is_baseline";
         public static final String COLUMN_GSR_CONDUCTANCE = "gsr_conductance";
         public static final String COLUMN_GSR_RESISTANCE = "gsr_resistance";
         public static final String COLUMN_PPG_A13 = "ppg";

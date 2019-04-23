@@ -3,7 +3,9 @@ package unimib.eu.informedconsentmonitor;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
-import android.widget.TextView;
+
+import java.util.Arrays;
+import java.util.HashMap;
 
 import unimib.eu.informedconsentmonitor.datamodel.SQLiteDbHelper;
 
@@ -61,9 +63,21 @@ public class CustomJavaScriptInterface {
 
     @JavascriptInterface
     public void trackJavascriptData(long timestamp, String paragraph, String webgazer){
-        //Log.d("JavascriptInterface", "timestamp: " + timestamp + " paragraph: " + paragraph + " webgazer: " + webgazer);
         mDbHelper.insertJavascriptDataEntry(lastSession, timestamp, paragraph, webgazer);
     }
+
+    @JavascriptInterface
+    public void calculateBiologicalBaseline(){
+        throw new UnsupportedOperationException("not implemented yet.");
+    }
+
+    @JavascriptInterface
+    public void calculateTimeSpentOnParagraphs(){
+        HashMap<Integer, Long> parMap = mDbHelper.getTimeSpentOnParagraphsDuringSession(lastSession);
+        String values = Arrays.toString(parMap.entrySet().toArray());
+        Log.d("time spent on each par (normalized on #words)", values);
+    }
+
 
 }
 

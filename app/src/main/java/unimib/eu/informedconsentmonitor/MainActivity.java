@@ -48,7 +48,6 @@ import com.shimmerresearch.driver.Configuration;
 import com.shimmerresearch.driver.FormatCluster;
 import com.shimmerresearch.driver.ObjectCluster;
 import com.shimmerresearch.driver.ShimmerDevice;
-import com.shimmerresearch.driverUtilities.SensorDetails;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -224,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
             }
             btManager.disconnectAllDevices();
         }
-        //dbHelper.clearData();
+        //dbHelper.clearDataBase();
     }
 
     @Override
@@ -399,7 +398,7 @@ public class MainActivity extends AppCompatActivity {
                                 "\n GSR RESISTANCE: " + gsrResistance +
                                 "\n PPG: " + ppg +
                                 "\n TEMPERATURE: " + temperature);
-                        dbHelper.insertShimmerDataEntry(lastSession, new Date().getTime(), gsrConductance, gsrResistance, ppg, temperature);
+                        dbHelper.insertShimmerDataEntry(lastSession, new Date().getTime(), isBaseline, gsrConductance, gsrResistance, ppg, temperature);
 
                     }
                     break;
@@ -509,13 +508,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void exportCsv(View v){
-        String message = "Tables exported successfully on the /storage/InformedConsent folder.";
-        try {
-            dbHelper.exportCsv();
-        } catch (IOException e) {
-            e.printStackTrace();
-            message = "error during csv export";
-        }
+        String message = "Tables exported successfully on the local storage.";
+        dbHelper.exportDataBaseToCsv();
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
 
