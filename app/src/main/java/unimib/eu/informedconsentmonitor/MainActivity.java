@@ -140,7 +140,7 @@ public class MainActivity extends AppCompatActivity {
                         drawerLayout.closeDrawers();
                         switch (menuItem.getItemId()) {
                             case R.id.nav_home:
-                                if(webView != null) webView.loadUrl(webApp_BaseUrl + "/login.php");
+                                if(webView != null) webView.loadUrl(webApp_BaseUrl );
                                 return true;
                             case R.id.nav_calibrate:
                                 if(webView != null) webView.loadUrl(webApp_BaseUrl + "/calibration.php");
@@ -207,11 +207,27 @@ public class MainActivity extends AppCompatActivity {
         //webView.setInitialScale(1);
         webView.clearCache(false);
         webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "AndroidBridge");
-        webView.loadUrl(webApp_BaseUrl + "/login.php");
-        Log.d("DEBUG", "webapp url is " + webApp_BaseUrl + "/login.php");
+        if(savedInstanceState == null) {
+            webView.loadUrl(webApp_BaseUrl);
+        }
+        Log.d("DEBUG", "webapp url is " + webApp_BaseUrl);
         // IMPORTANT !!!
         // "https://sites.google.com/a/chromium.org/dev/Home/chromium-security/deprecating-powerful-features-on-insecure-origins"
         // camera remote activation is allowed only on localhost or https served websites
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState )
+    {
+        super.onSaveInstanceState(outState);
+        webView.saveState(outState);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState)
+    {
+        super.onRestoreInstanceState(savedInstanceState);
+        webView.restoreState(savedInstanceState);
     }
 
     @Override
