@@ -4,8 +4,10 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
@@ -15,6 +17,7 @@ import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
@@ -36,7 +39,6 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.shimmerresearch.android.Shimmer;
@@ -61,7 +63,7 @@ import static com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog.EX
 
 public class MainActivity extends AppCompatActivity {
 
-    private final static String LOG_TAG = "Shimmer";
+    private final static String LOG_TAG = "MainActivity";
 
     protected WebView webView;
     protected DrawerLayout drawerLayout;
@@ -73,19 +75,34 @@ public class MainActivity extends AppCompatActivity {
     ShimmerDevice shimmerDevice;
     String shimmerBtAdd;
 
+    /**
+     * Reference to our bound service.
+     */
+    BluetoothService mService = null;
+    boolean mServiceConnected = false;
+    private ServiceConnection mConn = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName className, IBinder binder) {
+            Log.d("BinderActivity", "Connected to service.");
+            mService = ((BluetoothService.LocalBinder) binder).getService();
+            mServiceConnected = true;
+        }
+        /**
+         * Connection dropped.
+         */
+        @Override
+        public void onServiceDisconnected(ComponentName className) {
+            Log.d("BinderActivity", "Disconnected from service.");
+            mService = null;
+            mServiceConnected = false;
+        }
+    };
+
     // configuration.properties
     boolean isDebug;
     String webApp_BaseUrl;
 
-    public long lastSession = 0L; // database. table WebSession. column id
     public boolean isBaseline = false; // data streamed is used for baseline calculation
-
-    @Override
-    protected void onStart() {
-        //Connect the Shimmer using Bluetooth
-        connectDevice(null);
-        super.onStart();
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -112,12 +129,9 @@ public class MainActivity extends AppCompatActivity {
         // Open SQLite Db
         dbHelper = new SQLiteDbHelper(getApplicationContext());
 
-        // Trying to connect to a shimmer device at start up
-        try {
-            btManager = new ShimmerBluetoothManagerAndroid(this, mHandler);
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "Couldn't create ShimmerBluetoothManagerAndroid. Error: " + e);
-        }
+        Intent intent = new Intent(getApplicationContext(), BluetoothService.class);
+        bindService(intent, mConn, Context.BIND_AUTO_CREATE);
+        startService(intent);
 
         if (isDebug) {
             // Added only to be able to debug the application through chrome://inspect
@@ -141,41 +155,28 @@ public class MainActivity extends AppCompatActivity {
                         switch (menuItem.getItemId()) {
                             case R.id.nav_home:
                                 if(webView != null) webView.loadUrl(webApp_BaseUrl );
-                                return true;
+                                return false;
                             case R.id.nav_calibrate:
                                 if(webView != null) webView.loadUrl(webApp_BaseUrl + "/calibration.php");
-                                return true;
+                                return false;
                             case R.id.nav_connect_shimmer:
                                 connectDevice(null);
-                                return true;
+                                return false;
                             case R.id.nav_export_database:
                                 exportCsv(null);
-                                return true;
+                                return false;
+                            case R.id.nav_info:
+                                Intent i = new Intent(getApplicationContext(), InfoActivity.class);
+                                startActivity(i);
+                                return false;
                             default:
-                                return true;
+                                return false;
                         }
                     }
                 });
 
 
-        // We inject the needed javascript on every loaded page
         webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView webView, String url) {
-                super.onPageFinished(webView, url);
-                /*
-                if(url.contains(webApp_BaseUrl + "/builder.php")) {
-                    injectScriptFile(webView, "js/webgazer.js");
-                    injectScriptFile(webView, "js/inject.js");
-                    if(shimmerDevice != null){
-                      shimmerDevice.startStreaming();
-                    }
-                }
-                else if(url.contains(webApp_BaseUrl + "/response.php")) {
-                    dbHelper.updateWebSessionEntry(lastSession, System.currentTimeMillis());
-                }
-                */
-            }
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 webView.loadUrl(url);
@@ -204,7 +205,6 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
-        //webView.setInitialScale(1);
         webView.clearCache(false);
         webView.addJavascriptInterface(new CustomJavaScriptInterface(this, webView), "AndroidBridge");
         if(savedInstanceState == null) {
@@ -239,7 +239,12 @@ public class MainActivity extends AppCompatActivity {
             }
             btManager.disconnectAllDevices();
         }
-        //dbHelper.clearDataBase();
+
+        if (mServiceConnected) {
+            unbindService(mConn);
+            stopService(new Intent(this, BluetoothService.class));
+            mServiceConnected = false;
+        }
     }
 
     @Override
@@ -252,6 +257,7 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    @Deprecated
     private void injectScriptFile(WebView view, String scriptFile) {
         InputStream input;
         try {
@@ -283,7 +289,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void connectDevice(View v) {
-
         // We check if the bluetooth is ON
         BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mBluetoothAdapter == null) {
@@ -303,23 +308,16 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void startSDLogging(View v) {
-        ((ShimmerBluetooth) shimmerDevice).writeConfigTime(System.currentTimeMillis());
-        shimmerDevice.startSDLogging();
-    }
-
-    public void stopSDLogging(View v) {
-        shimmerDevice.stopSDLogging();
-    }
-
     public void stopStreaming(View v) {
-        if (shimmerDevice != null)
-            shimmerDevice.stopStreaming();
+        if (mService != null && mService.shimmerDevice != null) {
+            mService.shimmerDevice.startStreaming();
+        }
     }
 
     public void startStreaming(View v) {
-        if (shimmerDevice != null)
-            shimmerDevice.startStreaming();
+        if (mService != null && mService.shimmerDevice != null) {
+            mService.shimmerDevice.stopStreaming();
+        }
     }
 
 
@@ -414,7 +412,7 @@ public class MainActivity extends AppCompatActivity {
                                 "\n GSR RESISTANCE: " + gsrResistance +
                                 "\n PPG: " + ppg +
                                 "\n TEMPERATURE: " + temperature);
-                        dbHelper.insertShimmerDataEntry(lastSession, new Date().getTime(), isBaseline, gsrConductance, gsrResistance, ppg, temperature);
+                        dbHelper.insertShimmerDataEntry(new Date().getTime(), isBaseline, gsrConductance, gsrResistance, ppg, temperature);
 
                     }
                     break;
@@ -440,7 +438,6 @@ public class MainActivity extends AppCompatActivity {
                     switch (state) {
                         case CONNECTED:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now CONNECTED");
-                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "CONNECTED");
                             shimmerDevice = btManager.getShimmerDeviceBtConnectedFromMac(shimmerBtAdd);
                             if(shimmerDevice != null) {
                                 Log.i(LOG_TAG, "Got the ShimmerDevice!");
@@ -457,23 +454,18 @@ public class MainActivity extends AppCompatActivity {
                             break;
                         case CONNECTING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is CONNECTING");
-                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "CONNECTING");
                             break;
                         case STREAMING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now STREAMING");
-                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "STREAMING");
                             break;
                         case STREAMING_AND_SDLOGGING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now STREAMING AND LOGGING");
-                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "STREAMING AND LOGGING");
                             break;
                         case SDLOGGING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now SDLOGGING");
-                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "SDLOGGING");
                             break;
                         case DISCONNECTED:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] has been DISCONNECTED");
-                            //updateDebugText((TextView) findViewById(R.id.debug_shimmer), "DISCONNECTED");
                             break;
                     }
                     break;
@@ -494,13 +486,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if(requestCode == ShimmerBluetoothDialog.REQUEST_CONNECT_SHIMMER) {
             if (resultCode == Activity.RESULT_OK) {
-                try {
-                    btManager.disconnectAllDevices();   //Disconnect all devices first
-                }catch (NullPointerException ex){
-                    // .disconnectAllDevices() on null object throws a NPE
-                }
                 //Get the Bluetooth mac address of the selected device:
                 String macAdd = data.getStringExtra(EXTRA_DEVICE_ADDRESS);
+                mService.connectDevice(macAdd);
+                /*
                 if(btManager == null){
                     try {
                         btManager = new ShimmerBluetoothManagerAndroid(this, mHandler);
@@ -508,35 +497,21 @@ public class MainActivity extends AppCompatActivity {
                         Log.e(LOG_TAG, "Couldn't create ShimmerBluetoothManagerAndroid. Error: " + e);
                     }
                 }
-                btManager.connectShimmerThroughBTAddress(macAdd);   //Connect to the selected device
-                shimmerBtAdd = macAdd;
-                /*
-                shimmer = new Shimmer(mHandler);
-                shimmer.connect(macAdd, "default");                  //Connect to the selected device
+                //Disconnect all devices first
+                btManager.disconnectAllDevices();
+                //Connect to the selected device
+                btManager.connectShimmerThroughBTAddress(macAdd);
                 */
+                shimmerBtAdd = macAdd;
             }
         }
         super.onActivityResult(requestCode, resultCode, data);
-    }
-
-    public double getShimmerSamplingRate(){
-        return shimmerDevice.getSamplingRateShimmer();
     }
 
     public void exportCsv(View v){
         String message = "Tables exported successfully on the local storage.";
         dbHelper.exportDataBaseToCsv();
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-    }
-
-    public void updateDebugText(final TextView view, final String message){
-        // Addressing System.err: Only the original thread that created a view hierarchy can touch its views.
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                view.setText(message);
-            }
-        });
     }
 
 }

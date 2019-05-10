@@ -31,11 +31,12 @@ import unimib.eu.informedconsentmonitor.datamodel.DatabaseContract.SessionEntry;
 import unimib.eu.informedconsentmonitor.datamodel.DatabaseContract.ShimmerDataEntry;
 
 public class SQLiteDbHelper extends SQLiteOpenHelper {
-    public static final String LOG_TAG = "SQLite";
+    private static final String LOG_TAG = "SQLite";
     // If you change the database schema, you must increment the database version.
-    public static final int DATABASE_VERSION = 5;
-    public static final String DATABASE_NAME = "InformedConsentMonitor.db";
+    private static final int DATABASE_VERSION = 5;
+    private static final String DATABASE_NAME = "InformedConsentMonitor.db";
     private final String STORAGE_FOLDER = "/InformedConsent/";
+    private long lastSession = 0l;
 
     private static final String SQL_CREATE_SESSION_ENTRY =
             "CREATE TABLE " + SessionEntry.TABLE_NAME + " (" +
@@ -91,17 +92,17 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         onUpgrade(db, oldVersion, newVersion);
     }
 
-    public void updateWebSessionEntry(long id, long timestamp){
+    public void updateWebSessionEntry(long timestamp){
         // Gets the data repository in write mode
         SQLiteDatabase db = this.getWritableDatabase();
 
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
         values.put(SessionEntry.COLUMN_TIMESTAMP_OUT, timestampToDateString(timestamp));
-        values.put(SessionEntry.COLUMN_TIME_ON_PARAGRAPHS, Arrays.toString(getTimeSpentOnParagraphsDuringSession(id).entrySet().toArray()));
+        values.put(SessionEntry.COLUMN_TIME_ON_PARAGRAPHS, Arrays.toString(getTimeSpentOnParagraphsDuringLastSession().entrySet().toArray()));
 
-        db.update(SessionEntry.TABLE_NAME, values, SessionEntry._ID + " = ?", new String[]{Long.toString(id)});
-        Log.d(LOG_TAG, "session entry row updated. id: " + id);
+        db.update(SessionEntry.TABLE_NAME, values, SessionEntry._ID + " = ?", new String[]{Long.toString(lastSession)});
+        Log.d(LOG_TAG, "session entry row updated. id: " + lastSession);
     }
 
     public long insertWebSessionEntry(long timestamp, String url){ // TODO add patient data
@@ -115,10 +116,11 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
 
         long newRowId = db.insert(SessionEntry.TABLE_NAME, null, values);
         Log.d(LOG_TAG, "new session entry row insert. id: " + newRowId);
+        lastSession = newRowId;
         return newRowId;
     }
 
-    public long insertShimmerDataEntry(long session, long timestamp, boolean isBaseline,
+    public long insertShimmerDataEntry(long timestamp, boolean isBaseline,
                                        double gsrConductance, double gsrResistance,
                                        double ppg, double skinTemperature){
         // Gets the data repository in write mode
@@ -126,7 +128,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
 
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
-        values.put(ShimmerDataEntry.COLUMN_ID_SESSION, session);
+        values.put(ShimmerDataEntry.COLUMN_ID_SESSION, lastSession);
         values.put(ShimmerDataEntry.COLUMN_TIMESTAMP,
                 DateFormat.format("dd-MM-yyyy hh:mm:ss", timestamp).toString());
         values.put(ShimmerDataEntry.COLUMN_BASELINE, isBaseline?1:0);
@@ -141,14 +143,14 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         return newRowId;
     }
 
-    public long insertJavascriptDataEntry(long session, long timestamp, String paragraphs,
+    public long insertJavascriptDataEntry(long timestamp, String paragraphs,
                                           String webgazer){
         // Gets the data repository in write mode
         SQLiteDatabase db = this.getWritableDatabase();
 
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
-        values.put(JavascriptDataEntry.COLUMN_ID_SESSION, session);
+        values.put(JavascriptDataEntry.COLUMN_ID_SESSION, lastSession);
         values.put(JavascriptDataEntry.COLUMN_TIMESTAMP, timestampToDateString(timestamp));
         values.put(JavascriptDataEntry.COLUMN_PARAGRAPHS, paragraphs);
         values.put(JavascriptDataEntry.COLUMN_WEBGAZER, webgazer);
@@ -246,13 +248,13 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         clearDataBase();
     }
 
-    public HashMap getTimeSpentOnParagraphsDuringSession(long sessionId){
+    public HashMap getTimeSpentOnParagraphsDuringLastSession(){
         HashMap<String, Long> parTimeSpent = new HashMap<>();
         long previousTime = 0l;
         SQLiteDatabase db = this.getReadableDatabase();
         String query = "SELECT * FROM " + JavascriptDataEntry.TABLE_NAME +
                 " WHERE " + JavascriptDataEntry.COLUMN_ID_SESSION + " = ?";
-        Cursor cursor = db.rawQuery(query, new String[]{Long.toString(sessionId)});
+        Cursor cursor = db.rawQuery(query, new String[]{Long.toString(lastSession)});
         while(cursor.moveToNext()) {
             try {
                 JSONObject obj = new JSONObject(cursor.getString(3));

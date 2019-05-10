@@ -5,4 +5,6 @@
     <string name="export_database">Export data to csv</string>
     <string name="home">Home</string>
     <string name="calibrate">Calibrate</string>
+    <string name="info">Info</string>
+    <string name="settings">Settings</string>
 </resources>

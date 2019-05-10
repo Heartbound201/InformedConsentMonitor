@@ -14,7 +14,6 @@ public class CustomJavaScriptInterface {
     protected MainActivity parentActivity;
     protected WebView mWebView;
     protected SQLiteDbHelper mDbHelper;
-    private long lastSession;
     private final String STORAGE_FOLDER = "/InformedConsent/";
 
     public CustomJavaScriptInterface(MainActivity _activity, WebView _webView)  {
@@ -51,19 +50,18 @@ public class CustomJavaScriptInterface {
     @JavascriptInterface
     public void trackWebSession(long timestamp, String url){
         Log.d("JavascriptInterface", "timestamp: " + timestamp + " url: " + url);
-        lastSession = mDbHelper.insertWebSessionEntry(timestamp, url);
-        parentActivity.lastSession = lastSession;
+        mDbHelper.insertWebSessionEntry(timestamp, url);
     }
 
     @JavascriptInterface
     public void updateWebSession(long timestamp){
         Log.d("JavascriptInterface", "timestamp: " + timestamp);
-        mDbHelper.updateWebSessionEntry(lastSession, timestamp);
+        mDbHelper.updateWebSessionEntry(timestamp);
     }
 
     @JavascriptInterface
     public void trackJavascriptData(long timestamp, String paragraph, String webgazer){
-        mDbHelper.insertJavascriptDataEntry(lastSession, timestamp, paragraph, webgazer);
+        mDbHelper.insertJavascriptDataEntry(timestamp, paragraph, webgazer);
     }
 
     @JavascriptInterface
@@ -73,7 +71,7 @@ public class CustomJavaScriptInterface {
 
     @JavascriptInterface
     public void calculateTimeSpentOnParagraphs(){
-        HashMap<Integer, Long> parMap = mDbHelper.getTimeSpentOnParagraphsDuringSession(lastSession);
+        HashMap<Integer, Long> parMap = mDbHelper.getTimeSpentOnParagraphsDuringLastSession();
         String values = Arrays.toString(parMap.entrySet().toArray());
         Log.d("time spent on each par (normalized on #words)", values);
     }
