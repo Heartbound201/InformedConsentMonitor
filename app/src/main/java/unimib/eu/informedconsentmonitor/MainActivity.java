@@ -70,7 +70,10 @@ public class MainActivity extends AppCompatActivity {
     protected NavigationView navigationView;
     protected Toolbar toolbar;
 
+    //FIXME refactor this a dbHandler Singleton?)
     SQLiteDbHelper dbHelper;
+    public boolean isBaseline = false; // data streamed is used for baseline calculation
+
     ShimmerBluetoothManagerAndroid btManager;
     ShimmerDevice shimmerDevice;
     String shimmerBtAdd;
@@ -101,8 +104,6 @@ public class MainActivity extends AppCompatActivity {
     // configuration.properties
     boolean isDebug;
     String webApp_BaseUrl;
-
-    public boolean isBaseline = false; // data streamed is used for baseline calculation
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -308,18 +309,21 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void stopStreaming(View v) {
-        if (mService != null && mService.shimmerDevice != null) {
-            mService.shimmerDevice.startStreaming();
-        }
-    }
-
     public void startStreaming(View v) {
-        if (mService != null && mService.shimmerDevice != null) {
-            mService.shimmerDevice.stopStreaming();
+        if (mService != null) {
+            //FIXME refactor this a dbHandler Singleton?)
+            mService.setIsBaseline(isBaseline);
+            mService.startStreaming();
         }
     }
 
+    public void stopStreaming(View v) {
+        if (mService != null) {
+            //FIXME refactor this (a dbHandler Singleton?)
+            mService.setIsBaseline(isBaseline);
+            mService.stopStreaming();
+        }
+    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {

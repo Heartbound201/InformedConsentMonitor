@@ -33,7 +33,7 @@ import unimib.eu.informedconsentmonitor.datamodel.DatabaseContract.ShimmerDataEn
 public class SQLiteDbHelper extends SQLiteOpenHelper {
     private static final String LOG_TAG = "SQLite";
     // If you change the database schema, you must increment the database version.
-    private static final int DATABASE_VERSION = 5;
+    private static final int DATABASE_VERSION = 6;
     private static final String DATABASE_NAME = "InformedConsentMonitor.db";
     private final String STORAGE_FOLDER = "/InformedConsent/";
     private long lastSession = 0l;
@@ -44,6 +44,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
                     SessionEntry.COLUMN_TIMESTAMP_IN + " TEXT," +
                     SessionEntry.COLUMN_TIMESTAMP_OUT + " TEXT," +
                     SessionEntry.COLUMN_PAGE_URL + " TEXT," +
+                    SessionEntry.COLUMN_REPORT + " BLOB," +
                     SessionEntry.COLUMN_TIME_ON_PARAGRAPHS + " TEXT," +
                     SessionEntry.COLUMN_PATIENT + " TEXT);";
     private static final String SQL_CREATE_SHIMMER_ENTRY =
@@ -92,13 +93,14 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         onUpgrade(db, oldVersion, newVersion);
     }
 
-    public void updateWebSessionEntry(long timestamp){
+    public void updateWebSessionEntry(long timestamp, String report){
         // Gets the data repository in write mode
         SQLiteDatabase db = this.getWritableDatabase();
 
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
         values.put(SessionEntry.COLUMN_TIMESTAMP_OUT, timestampToDateString(timestamp));
+        values.put(SessionEntry.COLUMN_REPORT, report);
         values.put(SessionEntry.COLUMN_TIME_ON_PARAGRAPHS, Arrays.toString(getTimeSpentOnParagraphsDuringLastSession().entrySet().toArray()));
 
         db.update(SessionEntry.TABLE_NAME, values, SessionEntry._ID + " = ?", new String[]{Long.toString(lastSession)});
@@ -172,7 +174,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         Cursor c = null;
         List<String> tables = new ArrayList<>();
         try{
-            c = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'", null);
+            c = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' and name <> 'sqlite_sequence' and name <> 'android_metadata'", null);
             if (c.moveToFirst()) {
                 while ( !c.isAfterLast() ) {
                     tables.add(c.getString(0));

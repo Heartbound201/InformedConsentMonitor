@@ -11,6 +11,7 @@ import unimib.eu.informedconsentmonitor.datamodel.SQLiteDbHelper;
 
 public class CustomJavaScriptInterface {
 
+    String LOG_TAG = "CustomJavaScriptInterface";
     protected MainActivity parentActivity;
     protected WebView mWebView;
     protected SQLiteDbHelper mDbHelper;
@@ -49,14 +50,14 @@ public class CustomJavaScriptInterface {
 
     @JavascriptInterface
     public void trackWebSession(long timestamp, String url){
-        Log.d("JavascriptInterface", "timestamp: " + timestamp + " url: " + url);
+        Log.d(LOG_TAG, "timestamp: " + timestamp + " url: " + url);
         mDbHelper.insertWebSessionEntry(timestamp, url);
     }
 
     @JavascriptInterface
-    public void updateWebSession(long timestamp){
-        Log.d("JavascriptInterface", "timestamp: " + timestamp);
-        mDbHelper.updateWebSessionEntry(timestamp);
+    public void updateWebSession(long timestamp, String report){
+        Log.d(LOG_TAG, "timestamp: " + timestamp);
+        mDbHelper.updateWebSessionEntry(timestamp, report);
     }
 
     @JavascriptInterface
@@ -73,9 +74,13 @@ public class CustomJavaScriptInterface {
     public void calculateTimeSpentOnParagraphs(){
         HashMap<Integer, Long> parMap = mDbHelper.getTimeSpentOnParagraphsDuringLastSession();
         String values = Arrays.toString(parMap.entrySet().toArray());
-        Log.d("time spent on each par (normalized on #words)", values);
+        Log.d(LOG_TAG, "time spent on each par (normalized on #words): " + values);
     }
 
+    @JavascriptInterface
+    public void getSessionReport(String json){
+        Log.d(LOG_TAG, json);
+    }
 
 }
 

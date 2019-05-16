@@ -15,6 +15,7 @@ public class DatabaseContract {
         public static final String COLUMN_TIMESTAMP_OUT = "timestamp_out";
         public static final String COLUMN_PAGE_URL = "url";
         public static final String COLUMN_PATIENT = "patient";
+        public static final String COLUMN_REPORT = "report";
         public static final String COLUMN_TIME_ON_PARAGRAPHS = "time_on_paragraphs_normalized";
     }
 

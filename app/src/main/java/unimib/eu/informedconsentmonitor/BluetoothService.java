@@ -21,6 +21,7 @@ import com.shimmerresearch.driver.ObjectCluster;
 import com.shimmerresearch.driver.ShimmerDevice;
 import com.shimmerresearch.exceptions.ShimmerException;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -39,6 +40,9 @@ public class BluetoothService extends Service {
     ShimmerBluetoothManagerAndroid btManager;
     ShimmerDevice shimmerDevice;
     SQLiteDbHelper dbHelper;
+
+    // FIXME refactor this var
+    boolean isBaseline = false;
 
     public class LocalBinder extends Binder {
         /**
@@ -65,14 +69,14 @@ public class BluetoothService extends Service {
         // Open SQLite Db
         dbHelper = new SQLiteDbHelper(getApplicationContext());
 
-        HashMap<String, String> map = new HashMap<>();
-        sendBroadcast(map);
+        sendBroadcast(new HashMap<String, String>());
 
         return Service.START_STICKY;
     }
 
     @Override
     public void onDestroy(){
+        Log.d(LOG_TAG, "Service destroyed.");
         if (shimmerDevice != null){
             if(shimmerDevice.mBluetoothRadioState == ShimmerBluetooth.BT_STATE.STREAMING) {
                 shimmerDevice.stopStreaming();
@@ -127,9 +131,10 @@ public class BluetoothService extends Service {
                         double gsrConductance = Double.parseDouble(hm.get(SENSORS[0]));
                         double gsrResistance = Double.parseDouble(hm.get(SENSORS[1]));
                         double ppg = Double.parseDouble(hm.get(SENSORS[2]));
-                        double temperature = Double.parseDouble(hm.get(SENSORS[4]));
-                        dbHelper.insertShimmerDataEntry(new Date().getTime(), false, gsrConductance, gsrResistance, ppg, temperature);
+                        double temperature = Double.parseDouble(hm.get(SENSORS[3]));
+                        dbHelper.insertShimmerDataEntry(new Date().getTime(), isBaseline, gsrConductance, gsrResistance, ppg, temperature);
                         sendBroadcast(hm);
+                        //Log.d(LOG_TAG, "handleMessage: " + Arrays.toString(hm.entrySet().toArray()));
 
                     }
                     break;
@@ -160,29 +165,36 @@ public class BluetoothService extends Service {
                                 Log.i(LOG_TAG, "Got the ShimmerDevice!");
 
                                 /*
-                                for (SensorDetails sensorsDetsils : shimmerDevice.getListOfEnabledSensors()) {
-                                    for (String sensors : sensorsDetsils.mSensorDetailsRef.mListOfChannelsRef) {
+                                for (SensorDetails sensorsDetails : shimmerDevice.getListOfEnabledSensors()) {
+                                    for (String sensors : sensorsDetails.mSensorDetailsRef.mListOfChannelsRef) {
                                         Log.d("Enabled Sensors", sensors);
                                     }
                                 }
                                 */
                             }
                             else { Log.i(LOG_TAG, "ShimmerDevice returned is NULL!"); }
+                            sendBroadcast(new HashMap<String, String>());
                             break;
                         case CONNECTING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is CONNECTING");
+                            sendBroadcast(new HashMap<String, String>());
                             break;
                         case STREAMING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now STREAMING");
+                            sendBroadcast(new HashMap<String, String>());
                             break;
                         case STREAMING_AND_SDLOGGING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now STREAMING AND LOGGING");
+                            sendBroadcast(new HashMap<String, String>());
                             break;
                         case SDLOGGING:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] is now SDLOGGING");
+                            sendBroadcast(new HashMap<String, String>());
                             break;
                         case DISCONNECTED:
                             Log.i(LOG_TAG, "Shimmer [" + macAddress + "] has been DISCONNECTED");
+                            sendBroadcast(new HashMap<String, String>());
+                            Toast.makeText(getApplicationContext(), "Device " + macAddress + " is NOT Ready", Toast.LENGTH_SHORT).show();
                             break;
                     }
                     break;
@@ -213,6 +225,17 @@ public class BluetoothService extends Service {
         return 0;
     }
 
+    public String getShimmerState(){
+        if(shimmerDevice != null){
+            return shimmerDevice.getBluetoothRadioStateString();
+        }
+        return "DISCONNECTED";
+    }
+
+    public void setIsBaseline(boolean value){
+        isBaseline = value;
+    }
+
     /**
      * This method is responsible to send broadCast to specific Action
      * */
@@ -223,16 +246,16 @@ public class BluetoothService extends Service {
             Intent broadCastIntent = new Intent();
             broadCastIntent.setAction(BROADCAST_ACTION);
 
-            broadCastIntent.putExtra(SHIMMER_STATE, shimmerDevice == null ? "DISCONNECTED" : shimmerDevice.getBluetoothRadioState());
+            broadCastIntent.putExtra(SHIMMER_STATE, shimmerDevice == null ? "Disconnected" : shimmerDevice.getBluetoothRadioStateString());
             for (Map.Entry<String, String> pair: map.entrySet()) {
                 broadCastIntent.putExtra(pair.getKey(), pair.getValue());
             }
             localBroadcastManager.sendBroadcast(broadCastIntent);
-
+            Log.d(LOG_TAG, "broadcast sent.");
         }
         catch (Exception ex)
         {
-            ex.printStackTrace();
+            Log.e(LOG_TAG, "sendBroadcast: " + ex.getMessage());
         }
     }
 }
