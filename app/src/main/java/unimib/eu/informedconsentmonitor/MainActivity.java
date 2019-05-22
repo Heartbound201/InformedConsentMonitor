@@ -57,7 +57,6 @@ import java.util.Collection;
 import java.util.Date;
 
 import unimib.eu.informedconsentmonitor.datamodel.SQLiteDbHelper;
-import unimib.eu.informedconsentmonitor.utils.ConfigHelper;
 
 import static com.shimmerresearch.android.guiUtilities.ShimmerBluetoothDialog.EXTRA_DEVICE_ADDRESS;
 
@@ -124,9 +123,8 @@ public class MainActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
 
         // Read configuration properties
-        isDebug = "true".equalsIgnoreCase(ConfigHelper.getConfigValue(this, "debug"));
-        webApp_BaseUrl = ConfigHelper.getConfigValue(this, "webapp_url");
-
+        isDebug = BuildConfig.DEBUG;
+        webApp_BaseUrl = BuildConfig.WEBAPP_URL;
         // Open SQLite Db
         dbHelper = new SQLiteDbHelper(getApplicationContext());
 

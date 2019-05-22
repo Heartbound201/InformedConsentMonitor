@@ -22,13 +22,30 @@ android {
         multiDexEnabled true
     }
     buildTypes {
+        debug{
+            buildConfigField "String", "WEBAPP_URL", "\"https://informedconsentunimib.altervista.org/\""
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            buildConfigField "String", "WEBAPP_URL", "\"https://informedconsentunimib.altervista.org/\""
         }
+    }
+
+    flavorDimensions "abi"
+
+    productFlavors {
+        x86     { dimension "abi" }
+        x86_64  { dimension "abi" }
+        arm     { dimension "abi" }
+        aarch64 { dimension "abi" }
     }
 }
 
+ext {
+    debug = true
+    webapp_url = "https://informedconsentunimib.altervista.org/"
+}
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.android.support:appcompat-v7:27.0.0'
@@ -58,3 +75,4 @@ dependencies {
     )
     implementation 'com.android.support:cardview-v7:27.0.0'
 }
+

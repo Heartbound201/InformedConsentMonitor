@@ -57,6 +57,7 @@ public class CustomJavaScriptInterface {
     @JavascriptInterface
     public void updateWebSession(long timestamp, String report){
         Log.d(LOG_TAG, "timestamp: " + timestamp);
+        Log.d(LOG_TAG, "report: " + report);
         mDbHelper.updateWebSessionEntry(timestamp, report);
     }
 
