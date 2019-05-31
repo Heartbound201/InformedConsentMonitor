@@ -20,7 +20,7 @@ public class CustomJavaScriptInterface {
     public CustomJavaScriptInterface(MainActivity _activity, WebView _webView)  {
         parentActivity = _activity;
         mWebView = _webView;
-        mDbHelper = new SQLiteDbHelper(_activity.getApplicationContext());
+        mDbHelper = _activity.dbHelper;
     }
 
     @JavascriptInterface
@@ -37,21 +37,21 @@ public class CustomJavaScriptInterface {
     }
 
     @JavascriptInterface
-    public void startStreamingBaseline(){
-        parentActivity.isBaseline = true;
+    public void startStreamingBaseline(int val){
+        parentActivity.isBaseline = val;
         parentActivity.startStreaming(null);
     }
 
     @JavascriptInterface
     public void stopStreamingBaseline(){
-        parentActivity.isBaseline = false;
+        parentActivity.isBaseline = 0;
         parentActivity.stopStreaming(null);
     }
 
     @JavascriptInterface
-    public void trackWebSession(long timestamp, String url){
-        Log.d(LOG_TAG, "timestamp: " + timestamp + " url: " + url);
-        mDbHelper.insertWebSessionEntry(timestamp, url);
+    public void trackWebSession(long timestamp, String url, String type){
+        Log.d(LOG_TAG, "timestamp: " + timestamp + " url: " + url + " type: " + type);
+        mDbHelper.insertWebSessionEntry(timestamp, url, type);
     }
 
     @JavascriptInterface

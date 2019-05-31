@@ -14,6 +14,7 @@ import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.net.http.SslError;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -53,6 +54,7 @@ import com.shimmerresearch.driver.ShimmerDevice;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.util.Collection;
 import java.util.Date;
 
@@ -71,7 +73,7 @@ public class MainActivity extends AppCompatActivity {
 
     //FIXME refactor this a dbHandler Singleton?)
     SQLiteDbHelper dbHelper;
-    public boolean isBaseline = false; // data streamed is used for baseline calculation
+    public int isBaseline = 0; // data streamed is used for baseline calculation
 
     ShimmerBluetoothManagerAndroid btManager;
     ShimmerDevice shimmerDevice;
@@ -167,6 +169,9 @@ public class MainActivity extends AppCompatActivity {
                             case R.id.nav_info:
                                 Intent i = new Intent(getApplicationContext(), InfoActivity.class);
                                 startActivity(i);
+                                return false;
+                            case R.id.nav_baseline:
+                                if(webView != null) webView.loadUrl(webApp_BaseUrl + "/baseline.php");
                                 return false;
                             default:
                                 return false;
@@ -310,7 +315,7 @@ public class MainActivity extends AppCompatActivity {
     public void startStreaming(View v) {
         if (mService != null) {
             //FIXME refactor this a dbHandler Singleton?)
-            mService.setIsBaseline(isBaseline);
+            mService.setBaseline(isBaseline);
             mService.startStreaming();
         }
     }
@@ -318,7 +323,7 @@ public class MainActivity extends AppCompatActivity {
     public void stopStreaming(View v) {
         if (mService != null) {
             //FIXME refactor this (a dbHandler Singleton?)
-            mService.setIsBaseline(isBaseline);
+            mService.setBaseline(isBaseline);
             mService.stopStreaming();
         }
     }
@@ -490,6 +495,8 @@ public class MainActivity extends AppCompatActivity {
             if (resultCode == Activity.RESULT_OK) {
                 //Get the Bluetooth mac address of the selected device:
                 String macAdd = data.getStringExtra(EXTRA_DEVICE_ADDRESS);
+
+                mService.dbHelper = this.dbHelper;
                 mService.connectDevice(macAdd);
                 /*
                 if(btManager == null){
@@ -512,7 +519,16 @@ public class MainActivity extends AppCompatActivity {
 
     public void exportCsv(View v){
         String message = "Tables exported successfully on the local storage.";
-        dbHelper.exportDataBaseToCsv();
+        //dbHelper.exportDataBaseToCsv();
+        new AsyncTask<Context, Integer, Void>(){
+
+            @Override
+            protected Void doInBackground(Context... context) {
+                dbHelper.exportDataBaseToCsv();
+                return null;
+            }
+
+        }.execute(getApplicationContext());
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
 

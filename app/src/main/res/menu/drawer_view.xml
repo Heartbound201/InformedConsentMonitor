@@ -14,6 +14,10 @@
             android:icon="@drawable/ic_menu_calibrate"
             android:title="@string/calibrate" />
         <item
+            android:id="@+id/nav_baseline"
+            android:icon="@drawable/ic_menu_cast"
+            android:title="@string/calculate_baseline" />
+        <item
             android:id="@+id/nav_export_database"
             android:icon="@drawable/ic_menu_export"
             android:title="@string/export_database" />

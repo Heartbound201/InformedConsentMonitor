@@ -21,7 +21,6 @@ import com.shimmerresearch.driver.ObjectCluster;
 import com.shimmerresearch.driver.ShimmerDevice;
 import com.shimmerresearch.exceptions.ShimmerException;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -39,10 +38,10 @@ public class BluetoothService extends Service {
     LocalBroadcastManager localBroadcastManager;
     ShimmerBluetoothManagerAndroid btManager;
     ShimmerDevice shimmerDevice;
-    SQLiteDbHelper dbHelper;
+    public SQLiteDbHelper dbHelper;
 
     // FIXME refactor this var
-    boolean isBaseline = false;
+    int baseline = 0;
 
     public class LocalBinder extends Binder {
         /**
@@ -67,7 +66,8 @@ public class BluetoothService extends Service {
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
 
         // Open SQLite Db
-        dbHelper = new SQLiteDbHelper(getApplicationContext());
+        //dbHelper = new SQLiteDbHelper(getApplicationContext());
+        // FIX: changing dbHelper to public and setting it from MainActivity
 
         sendBroadcast(new HashMap<String, String>());
 
@@ -132,7 +132,7 @@ public class BluetoothService extends Service {
                         double gsrResistance = Double.parseDouble(hm.get(SENSORS[1]));
                         double ppg = Double.parseDouble(hm.get(SENSORS[2]));
                         double temperature = Double.parseDouble(hm.get(SENSORS[3]));
-                        dbHelper.insertShimmerDataEntry(new Date().getTime(), isBaseline, gsrConductance, gsrResistance, ppg, temperature);
+                        dbHelper.insertShimmerDataEntry(new Date().getTime(), baseline, gsrConductance, gsrResistance, ppg, temperature);
                         sendBroadcast(hm);
                         //Log.d(LOG_TAG, "handleMessage: " + Arrays.toString(hm.entrySet().toArray()));
 
@@ -232,8 +232,8 @@ public class BluetoothService extends Service {
         return "DISCONNECTED";
     }
 
-    public void setIsBaseline(boolean value){
-        isBaseline = value;
+    public void setBaseline(int value){
+        baseline = value;
     }
 
     /**

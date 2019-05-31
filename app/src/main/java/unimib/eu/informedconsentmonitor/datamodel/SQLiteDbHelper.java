@@ -33,7 +33,7 @@ import unimib.eu.informedconsentmonitor.datamodel.DatabaseContract.ShimmerDataEn
 public class SQLiteDbHelper extends SQLiteOpenHelper {
     private static final String LOG_TAG = "SQLite";
     // If you change the database schema, you must increment the database version.
-    private static final int DATABASE_VERSION = 6;
+    private static final int DATABASE_VERSION = 8;
     private static final String DATABASE_NAME = "InformedConsentMonitor.db";
     private final String STORAGE_FOLDER = "/InformedConsent/";
     private long lastSession = 0l;
@@ -43,6 +43,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
                     SessionEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
                     SessionEntry.COLUMN_TIMESTAMP_IN + " TEXT," +
                     SessionEntry.COLUMN_TIMESTAMP_OUT + " TEXT," +
+                    SessionEntry.COLUMN_TYPE + " TEXT," +
                     SessionEntry.COLUMN_PAGE_URL + " TEXT," +
                     SessionEntry.COLUMN_REPORT + " BLOB," +
                     SessionEntry.COLUMN_TIME_ON_PARAGRAPHS + " TEXT," +
@@ -52,7 +53,6 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
                     ShimmerDataEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
                     ShimmerDataEntry.COLUMN_ID_SESSION + " INTEGER," +
                     ShimmerDataEntry.COLUMN_TIMESTAMP + " TEXT," +
-                    ShimmerDataEntry.COLUMN_BASELINE + " INTEGER DEFAULT 0," +
                     ShimmerDataEntry.COLUMN_GSR_CONDUCTANCE + " REAL," +
                     ShimmerDataEntry.COLUMN_GSR_RESISTANCE + " REAL," +
                     ShimmerDataEntry.COLUMN_PPG_A13 + " REAL," +
@@ -107,13 +107,14 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         Log.d(LOG_TAG, "session entry row updated. id: " + lastSession);
     }
 
-    public long insertWebSessionEntry(long timestamp, String url){ // TODO add patient data
+    public long insertWebSessionEntry(long timestamp, String url, String type){ // TODO add patient data
         // Gets the data repository in write mode
         SQLiteDatabase db = this.getWritableDatabase();
 
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
         values.put(SessionEntry.COLUMN_TIMESTAMP_IN, timestampToDateString(timestamp));
+        values.put(SessionEntry.COLUMN_TYPE, type);
         values.put(SessionEntry.COLUMN_PAGE_URL, url);
 
         long newRowId = db.insert(SessionEntry.TABLE_NAME, null, values);
@@ -122,7 +123,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         return newRowId;
     }
 
-    public long insertShimmerDataEntry(long timestamp, boolean isBaseline,
+    public long insertShimmerDataEntry(long timestamp, int baseline,
                                        double gsrConductance, double gsrResistance,
                                        double ppg, double skinTemperature){
         // Gets the data repository in write mode
@@ -133,7 +134,6 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
         values.put(ShimmerDataEntry.COLUMN_ID_SESSION, lastSession);
         values.put(ShimmerDataEntry.COLUMN_TIMESTAMP,
                 DateFormat.format("dd-MM-yyyy hh:mm:ss", timestamp).toString());
-        values.put(ShimmerDataEntry.COLUMN_BASELINE, isBaseline?1:0);
         values.put(ShimmerDataEntry.COLUMN_GSR_CONDUCTANCE, gsrConductance);
         values.put(ShimmerDataEntry.COLUMN_GSR_RESISTANCE, gsrResistance);
         values.put(ShimmerDataEntry.COLUMN_PPG_A13, ppg);
@@ -212,7 +212,7 @@ public class SQLiteDbHelper extends SQLiteOpenHelper {
                 File file = new File(exportDir, csvFileName);
                 boolean isFileNew = file.createNewFile();
                 csvWrite = new CSVWriter(new FileWriter(file, true),
-                        CSVWriter.DEFAULT_SEPARATOR,
+                        '|', // we don't use CSVWriter.DEFAULT_SEPARATOR ',' because we deal with json objects
                         CSVWriter.NO_QUOTE_CHARACTER,
                         CSVWriter.NO_ESCAPE_CHARACTER,
                         CSVWriter.RFC4180_LINE_END);
